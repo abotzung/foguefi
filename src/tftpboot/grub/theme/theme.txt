@@ -1,0 +1,93 @@
+#
+# FOG Theme heavily inspired by {Redo Rescue themed graphics}
+#  http://redorescue.com/
+#  Redo Rescue ©2010−2020 Zebradots Software | Released under the GNU GPLv3
+#
+# Alexandre BOTZUNG <alexandre.botzung@grandest.fr> <02 2023>
+# https://github.com/FOGProject/fogproject
+# The FOG Project logo(l), made with love
+#
+
+title-text: ""
+desktop-color: "black"
+desktop-image: "background.png"
+desktop-image-scale-method: "fitheight"
+terminal-box: "terminal_*.png"
+terminal-font: "Unifont Regular 16"
+terminal-border: "4"
+
++ boot_menu {
+  left = 21% #25%
+  top = 45% #55%
+  width = 54% #50%
+  height = 336 #144 # Doit être un multiple de item_height
+  item_font = "Helvetica Bold 18"
+  item_color = "#ffffff"
+  selected_item_color = "#ffffff"
+  icon_width = 32
+  icon_height = 32
+  item_icon_space = 12
+  item_height = 48
+  item_spacing = 0
+  item_padding = 0
+  item_pixmap_style = "box_*.png"
+  selected_item_pixmap_style = "box_selected_*.png"
+  menu_pixmap_style = "x_*.png"
+  scrollbar = true
+  scrollbar_width = 20
+  scrollbar_frame = "sliderbg_*.png"
+  scrollbar_thumb = "slider_*.png"
+}
+
++ image {
+  id = "fog_logo"
+  left = 7%
+  top = 9%
+  file = "foglogo.png"
+}
+
++ label {
+  id = "bottom_help"
+  left = 0
+  top = 100%-50
+  width = 100%
+  align = "center"
+  color = "gray"
+  font = "Helvetica Regular 12"
+  text = @KEYMAP_MIDDLE@
+}
+
++ label {
+  id = "bottom_info"
+  left = 0
+  top = 100%-30
+  width = 100%
+  align = "center"
+  color = "gray"
+  font = "Helvetica Regular 12"
+  text = "MOD_UEFI Secure Boot - The FOG Project Team & Alex Botzung (v:20230307)"
+}
+
+#+ circular_progress {
+#  id = "__timeout__"
+#  center_bitmap = "circle.png"
+#  tick_bitmap = "tick.png"
+#  num_ticks = 24
+#  ticks_disappear = true
+#  start_angle = 64
+#  left = 85%-68
+#  top = 20%-68
+#  width = 136
+#  height = 136
+#}
+
++ label {
+  id = "__timeout__"
+  left = 85%-68
+  top = 20%-12
+  width = 136
+  height = 16
+  align = "center"
+  color = "#627d9f"
+  font = "Helvetica Bold 18"
+}

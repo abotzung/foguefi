@@ -1,0 +1,41 @@
+#!/bin/bash
+# FOG BUILDER - Alexandre BOTZUNG Jun 2022
+# ---vvv------------ Le répertoire racine pour FOG Builder
+basedir="/root"
+# ---vvv------------ Quelques constantes. . .
+basedir_sources="$basedir/sources"
+basedir_temp="$basedir/temp"
+basedir_rootfs="$basedir/rootfs"
+basedir_project="$basedir/project"
+basedir_release="$basedir/release"
+
+[[ ! -d "$basedir_sources" ]] && mkdir $basedir_sources
+[[ ! -d "$basedir_temp" ]] && mkdir $basedir_temp
+[[ ! -d "$basedir_rootfs" ]] && mkdir $basedir_rootfs
+[[ ! -d "$basedir_project" ]] && mkdir $basedir_project
+[[ ! -d "$basedir_release" ]] && mkdir $basedir_release
+
+
+
+
+
+clonezilla_iso="$basedir_sources/clonezilla_lastest.iso"
+# !!! ATTENTION !!! Comme FOG à besoin d'un GRUB signée ayant le module http + smbios inclus, 
+#   il est nécessaire de démarrer le système avec le GRUB signed de Ubuntu (car celui de Debian ne l'a pas).
+#   Comme shim est signée par Microsoft, qui valide la signature de GRUB, qui valide la signature du kernel Linux, il est IMPERATIF d'utiliser la saveur "Ubuntu" de Clonezilla.
+#   La version Debian ne fonctionne pas ; elle provoquera un "Bad shim signature" au démarrage.
+clonezilla_iso_url="https://sourceforge.net/projects/clonezilla/files/clonezilla_live_alternative/20220620-jammy/clonezilla-live-20220620-jammy-amd64.iso/download"
+
+
+# C'est moyen cool, mais ça fera l'affaire pour quelques bidouilles...
+# file ./...filesystem : ./iso/live/filesystem.squashfs: Squashfs filesystem, little endian, version 4.0, xz compressed(...)
+hardcoded_clonezilla_iso_filesystem="$basedir_temp/iso/live/filesystem.squashfs"
+
+# file ./...vmlinuz : ./iso/live/vmlinuz: Linux kernel x86 boot executable bzImage, version 5.17.0-2-amd64 (...)
+hardcoded_clonezilla_iso_linuxkrnl="$basedir_temp/iso/live/vmlinuz"
+
+
+foginit_xz="$basedir_sources/foginit_latest.xz"
+foginit_xz_url="https://github.com/FOGProject/fos/releases/latest/download/init.xz"
+
+flag_sourcesok="$basedir_sources/sources_ok"

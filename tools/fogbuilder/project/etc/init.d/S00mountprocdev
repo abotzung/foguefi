@@ -1,0 +1,18 @@
+#!/bin/sh
+# @category FOGStubmenu
+# @package  FOGUefi
+# @author   Alexandre Botzung <alexandre.botzung@grandest.fr>
+# @license  http://opensource.org/licenses/gpl-3.0 GPLv3
+# @link     https://fogproject.org
+#
+echo Mounting minimal fs...
+mount -t devtmpfs none /dev
+mkdir /dev/pts
+mount /dev/pts
+mount /proc
+mount /sys
+mount /tmp
+mount /run
+mount /sys
+mount /sys/firmware/efivars
+echo Done.

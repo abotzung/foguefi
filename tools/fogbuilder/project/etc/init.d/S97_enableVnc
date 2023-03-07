@@ -1,0 +1,42 @@
+#!/bin/sh
+# @category FOGStubmenu
+# @package  FOGUefi
+# @author   Alexandre Botzung <alexandre.botzung@grandest.fr>
+# @license  http://opensource.org/licenses/gpl-3.0 GPLv3
+# @link     https://fogproject.org
+#
+#~~~~~~~~~~~~ Active VNC si le drapeau enablevnc=yes est présent dans la cmdline
+. /usr/share/fog/lib/funcs.sh
+
+######## Donne le nom du pc ####
+sysuuid=$(dmidecode -s system-uuid)
+sysuuid=${sysuuid,,}
+mac=$(getMACAddresses)
+DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac" "${web}service/hostname.php" -A '')
+IPClient=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac" "${web}service/localip.php" -A '')
+
+if [[ $DoCurl == *"#!ok="* ]]; then
+	IFS=$'\n'
+	for line in $DoCurl; do
+		if [[ $line == *"#!ok="* ]]; then
+			line2=$(echo "$line" | sed -r 's,\t,,g')
+			line2=${line2/=/|}
+			computerName=$(awk -F\|  '{print $2}' <<< $line2)
+			computerName="$computerName-$mac-$IPClient"
+		fi
+	done
+else
+	computerName="**INCONNU**-$mac-$IPClient"
+fi
+
+if [[ -n $enablevnc ]]; then
+	if [[ $enablevnc == "yes" ]]; then
+		ipServeurFOG=$(echo $web | awk -F[/:] '{print $4}')
+		echo "Enabling VNC server..."
+		socat TCP-LISTEN:5901,fork,range=$ipServeurFOG/32 TCP:127.0.0.1:5900 > /dev/null 2>&1 &
+		sleep 1
+		framebuffer-vncserver -n $computerName -k /dev/console > /dev/null 2>&1 &
+		DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac" "${web}service/enablevnc.php" -A '')
+		echo "Done."
+	fi
+fi
