@@ -36,7 +36,8 @@ clonezilla_iso="$basedir_sources/clonezilla_lastest.iso"
 #   il est nécessaire de démarrer le système avec le GRUB signed de Ubuntu (car celui de Debian ne l'a pas).
 #   Comme shim est signée par Microsoft, qui valide la signature de GRUB, qui valide la signature du kernel Linux, il est IMPERATIF d'utiliser la saveur "Ubuntu" de Clonezilla.
 #   La version Debian ne fonctionne pas ; elle provoquera un "Bad shim signature" au démarrage.
-clonezilla_iso_url="https://osdn.net/frs/redir.php?f=clonezilla%2F77962%2Fclonezilla-live-20221103-kinetic-amd64.iso"
+#clonezilla_iso_url="https://osdn.net/frs/redir.php?f=clonezilla%2F77962%2Fclonezilla-live-20221103-kinetic-amd64.iso"
+clonezilla_iso_url="https://sourceforge.net/projects/clonezilla/files/clonezilla_live_alternative/20230212-kinetic/clonezilla-live-20230212-kinetic-amd64.iso/download"
 
 
 # C'est moyen cool, mais ça fera l'affaire pour quelques bidouilles...
