@@ -36,8 +36,7 @@ clonezilla_iso="$basedir_sources/clonezilla_lastest.iso"
 #   il est nécessaire de démarrer le système avec le GRUB signed de Ubuntu (car celui de Debian ne l'a pas).
 #   Comme shim est signée par Microsoft, qui valide la signature de GRUB, qui valide la signature du kernel Linux, il est IMPERATIF d'utiliser la saveur "Ubuntu" de Clonezilla.
 #   La version Debian ne fonctionne pas ; elle provoquera un "Bad shim signature" au démarrage.
-#clonezilla_iso_url="https://osdn.net/frs/redir.php?f=clonezilla%2F77962%2Fclonezilla-live-20221103-kinetic-amd64.iso"
-clonezilla_iso_url="https://sourceforge.net/projects/clonezilla/files/clonezilla_live_alternative/20230212-kinetic/clonezilla-live-20230212-kinetic-amd64.iso/download"
+clonezilla_iso_url="https://sourceforge.net/projects/clonezilla/files/clonezilla_live_alternative/20230426-lunar/clonezilla-live-20230426-lunar-amd64.iso/download"
 
 
 # C'est moyen cool, mais ça fera l'affaire pour quelques bidouilles...
@@ -373,19 +372,29 @@ fi
 
 
 echo "-------------------------------------------------------------"
-echo "  ========> Copying shimx64.efi.signed . . . "
-shimx64=$(find "$basedir_temp/shim_out" -name shimx64.efi.signed| head -n 1)
+echo "  ========> Copying shimx64.efi.signed.latest . . . "
+shimx64=$(find "$basedir_temp/shim_out" -name shimx64.efi.signed.latest| head -n 1)
 if [ ! -f "$shimx64" ]
 then
 	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR : shimx64.efi.signed is nowhere to be found ! ! ! ! !"
-	exit 1
+	echo "! ! ! ! ! WARNING : shimx64.efi.signed.latest is nowhere to be found ! ! ! ! !"
+	echo " Retrying with shimx64.efi.signed..."
+	shimx64_std=$(find "$basedir_temp/shim_out" -name shimx64.efi.signed| head -n 1)
+		if [ ! -f "$shimx64_std" ]
+		then
+			echo "ERRLVL : $?"
+			echo "! ! ! ! ! ERROR : shimx64.efi.signed is nowhere to be found ! ! ! ! !"
+			exit 1
+		else
+			shimx64="$shimx64_std"
+		fi
 fi
+
 cp "$shimx64" "$basedir_release/shimx64.efi"
 if [ $? -ne 0 ]
 then
 	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR while copying shimx64.efi.signed ! ! ! ! !"
+	echo "! ! ! ! ! ERROR while copying $shimx64 (shimx64.efi) ! ! ! ! !"
 	exit 1
 fi
 
