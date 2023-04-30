@@ -41,7 +41,7 @@ try {
   // set the PDO error mode to exception
   $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   //echo "Connected successfully";
-  $stmt = $conn->prepare("SELECT hIP FROM history ORDER BY 'hID' DESC LIMIT 1;");
+  $stmt = $conn->prepare("SELECT hIP FROM history WHERE hID=(SELECT max(hID) FROM history);");
   $stmt->execute();
   $result = $stmt->setFetchMode(PDO::FETCH_ASSOC);
   $ipary=$stmt->fetchAll()[0];
