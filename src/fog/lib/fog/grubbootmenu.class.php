@@ -659,13 +659,13 @@ class GrubBootMenu extends FOGBase
             1
         )] = array( /* Mettre ICI l'arret d'urgence de la tâche */
 			"set timeout=3 ; set default=0",
-			"menuentry 'Scheduled tasking : ". $TASK_HumanNameType ."' --class ". $TASK_Icon ." fog {",
+			"menuentry 'Scheduled tasking : ". $TASK_HumanNameType ."' --class ". $TASK_Icon ." --id scheduledtasking {",
 			'echo "Loading kernel. . ."',
             "$this->_kernel $kernelArgs",
 			'echo "Loading initrd. . ."',
             $this->_initrd,
 			"}",
-			'menuentry "Enable GUI" --class gear uefi-firmware {',
+			'menuentry "Enable GUI" --class gear --id uefi-firmware {',
 			'set gfxgui=gfxgui=xorg',
 			'echo "Ok"',
 			'}',
@@ -1128,7 +1128,7 @@ class GrubBootMenu extends FOGBase
     {
         $Send['nomenu'] = array(
             'set timeout=3 ; set default=0',
-            'menuentry "Boot from hard disk" --class drive-harddisk boothardisk {',
+            'menuentry "Boot from hard disk" --class drive-harddisk --id boothardisk {',
             'echo "Booting first local disk..."',
             '# Generate boot menu automatically',
             'configfile ${bootpath}/grub/boot-local-efi.cfg',
@@ -1525,7 +1525,7 @@ class GrubBootMenu extends FOGBase
             if ($Task->get('typeID') == 4) {
                 $Send['memtest'] = array(
 					'set timeout=3 ; set default=0',
-					'menuentry "Run Memtester" --class gnome-system-monitor bootmemtest {',
+					'menuentry "Run Memtester" --class gnome-system-monitor --id bootmemtest {',
 					$this->_kernel . " menutype=memtester",
 					'echo "Loading kernel. . ."',
 					$this->_initrd,
@@ -1596,14 +1596,14 @@ class GrubBootMenu extends FOGBase
         $showDebug = isset($_REQUEST['debug']);
 
         $Send['header'] = array(
-                'set default=1',
+                'set default=boothardisk',
             );
 
         $reg_string = 'NOT registered!';
         if (self::$Host->isValid()) {
             if (self::$Host->get('pending')) {
 				$Send['menustart'] = array(
-					'menuentry "Host is pending approval." --class pending info {',
+					'menuentry "Host is pending approval." --class pending --id info {',
 					'true',
 					'}',
 				);
@@ -1619,11 +1619,12 @@ class GrubBootMenu extends FOGBase
 				'menuentry "Host is NOT registered! MAC='.$_REQUEST['mac'].'" --class not-reg info {',
 				'true',
 				'}',
+				self::getSetting('FOG_QUICKREG_AUTOPOP') ? 'set default=autoreg' : '',
 			);
 		}
 		
 		$Send["DebutMenuGrub"] = array(	
-			'menuentry "Boot from hard disk" --class drive-harddisk boothardisk {',
+			'menuentry "Boot from hard disk" --class drive-harddisk --id boothardisk {',
 			'echo "Booting first local disk..."',
 			'# Generate boot menu automatically',
 			'configfile ${bootpath}/grub/boot-local-efi.cfg',
@@ -1634,7 +1635,7 @@ class GrubBootMenu extends FOGBase
 			'reboot',
 			'}',
 
-			'menuentry "Run Memtester" --class gnome-system-monitor bootmemtest {',
+			'menuentry "Run Memtester" --class gnome-system-monitor --id bootmemtest {',
 			'echo "Loading kernel. . ."',
 			$this->_kernel . " menutype=memtester",
 			'echo "Loading initrd. . ."',
@@ -1646,7 +1647,7 @@ class GrubBootMenu extends FOGBase
         if (self::$Host->isValid()) {
             if (self::$Host->get('pending')) {
                 $Send["Approval"] = array(
-                'menuentry "Approve This Host" --class fogplus autoreg {',
+                'menuentry "Approve This Host" --class fogplus --id approve {',
                 'echo "Loading kernel. . ."',
                 $this->_kernel . " menutype=approvehost",
                 'echo "Loading initrd. . ."',
@@ -1659,14 +1660,14 @@ class GrubBootMenu extends FOGBase
 		
 		if (!self::$Host->isValid()) {
 			$Send["MilieuMenuGrub"] = array(	
-				'menuentry "Perform Full Host Registration and Inventory" --class fog manreg {',
+				'menuentry "Perform Full Host Registration and Inventory" --class fog --id manreg {',
 				'echo "Loading kernel. . ."',
 				$this->_kernel . " mode=manreg",
 				'echo "Loading initrd. . ."',
 				$this->_initrd,
 				'echo "Booting kernel, please wait."',
 				'}',
-				'menuentry "Quick Registration and Inventory" --class fogplus autoreg {',
+				'menuentry "Quick Registration and Inventory" --class fogplus --id autoreg {',
 				'echo "Loading kernel. . ."',
 				$this->_kernel . " mode=autoreg",
 				'echo "Loading initrd. . ."',
@@ -1676,14 +1677,14 @@ class GrubBootMenu extends FOGBase
 				);
 		} else {
 			$Send["MilieuMenuGrub"] = array(	
-				'menuentry "Quick host deletion" --class unreg unreg {',
+				'menuentry "Quick host deletion" --class unreg --id unreg {',
 				'echo "Loading kernel. . ."',
 				$this->_kernel . " menutype=unreg",
 				'echo "Loading initrd. . ."',
 				$this->_initrd,
 				'echo "Booting kernel, please wait."',
 				'}',
-                'menuentry "Update Product Key" --class fogplus updatekey {',
+                'menuentry "Update Product Key" --class fogplus --id updatekey {',
                 'echo "Loading kernel. . ."',
                 $this->_kernel . " menutype=updatekey",
                 'echo "Loading initrd. . ."',
@@ -1696,32 +1697,32 @@ class GrubBootMenu extends FOGBase
 		};
 		
 		$Send["FinMenuGrub"] = array(
-			'menuentry "Deploy Image" --class download downimage {',
+			'menuentry "Deploy Image" --class download --id downimage {',
 				'echo "Loading kernel. . ."',
 				$this->_kernel . " menutype=down",
 				'echo "Loading initrd. . ."',
 				$this->_initrd,
 				'echo "Booting kernel, please wait."',
 			'}',
-			'menuentry "Join Multicast Session" --class multicast joinmulticast {',
+			'menuentry "Join Multicast Session" --class multicast --id joinmulticast {',
 				'echo "Loading kernel. . ."',
 				$this->_kernel . " menutype=askmc",
 				'echo "Loading initrd. . ."',
 				$this->_initrd,
 				'echo "Booting kernel, please wait."',
 			'}',
-			'menuentry "Client System Information (compatibility)" --class fog systeminfo {',
+			'menuentry "Client System Information (compatibility)" --class fog --id systeminfo {',
 				'echo "Loading kernel. . ."',
 				$this->_kernel . " mode=sysinfo",
 				'echo "Loading initrd. . ."',
 				$this->_initrd,
 				'echo "Booting kernel, please wait."',
 			'}',
-			'menuentry "Enable GUI" --class gear uefi-firmware {',
+			'menuentry "Enable GUI" --class gear --id enablegfx {',
 			'set gfxgui=gfxgui=xorg',
 			'echo "Ok"',
 			'}',
-			'menuentry "uEFI firmware setup" --class gear uefi-firmware {',
+			'menuentry "uEFI firmware setup" --class gear --id uefi-firmware {',
 			'echo "Entering uEFI firmware setup..."',
 			'fwsetup',
 			'}',
