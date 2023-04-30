@@ -1,12 +1,12 @@
 #!/bin/bash
 #============================================================================
-#              F O G    P R O J E C T    v 1 . 5 . 9 . x
+#              F O G    P R O J E C T    v 1 . 5 . 10 . x
 #                    Unofficial Secure Boot Patch
 #             FOGUefi (https://github.com/abotzung/foguefi)
 #
 # Auteur       : Alexandre BOTZUNG [alexandre.botzung@grandest.fr]
 # Auteur       : The FOG Project team (https://github.com/FOGProject/fogproject)
-# Version      : 20230307
+# Version      : 20230430
 # Licence      : http://opensource.org/licenses/gpl-3.0
 #============================================================================ 
 # install.sh
@@ -54,10 +54,10 @@ echo '      Luca Ferretti <elle.uca@libero.it>'
 echo '      Tuomas Kuosmanen <tigert@gimp.org>'
 echo '      Andreas Nilsson <nisses.mail@home.se>'
 echo '      Jakub Steiner <jimmac@novell.com>'
-echo ' - '
-echo ' - '
-echo ' - '
-echo ' - '
+echo '  '
+echo '  '
+echo '  '
+echo '  '
 
 
 echo ''
@@ -107,6 +107,7 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	chmod -R 0755 "${docroot}${webroot}/lib"
 	chmod -R 0755 "${docroot}${webroot}/service"
 	rm "${docroot}${webroot}/service/grub/tftp"
+	rm "${docroot}${webroot}/service/grub/grub_https.php"
 	ln -s /tftpboot "${docroot}${webroot}/service/grub/tftp"
 	ln -s "${docroot}${webroot}/service/grub/grub.php" "${docroot}${webroot}/service/grub/grub_https.php"
 	chmod +x "${docroot}${webroot}/service/grub/grub_https.php"
@@ -124,22 +125,35 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 
     echo "=> Configurying Apache server..."
     FOGApacheFile=$(grep -rnw '/management/other/ca.cert.der$ - ' /etc/apache2 | head -n1 | cut -f1 -d:)
+    FOGApachefileAlreadyPatched=$(grep -rnw 'Add made by foguefi patch' /etc/apache2 | head -n1 | cut -f1 -d:)
     if [ -f "$FOGApacheFile" ]; then
-		# mkrandom ? ^^
-		TempConf="$RANDOM$RANDOM$RANDOM.apache2.conf"
-		cat <<'EOF' >> /tmp/$TempConf
+		if [ ! -f "$FOGApachefileAlreadyPatched" ]; then
+			# mkrandom ? ^^
+			TempConf="$RANDOM$RANDOM$RANDOM.apache2.conf"
+			cat <<'EOF' >> /tmp/$TempConf
 # -=-=-=- Add made by foguefi patch    
 RewriteRule /service/grub/grub.php$ - [L]        # Nécessaire pour GRUB ne supportant pas HTTPS
 RewriteRule /service/grub/tftp/.*$ - [L]        # Nécessaire pour fetch les fichiers en HTTP
 # -=-=-=--=-=-=-=-=-=-
 EOF
-		sed "/RewriteRule \/management\/other\/ca.cert.der/r /tmp/$TempConf" "$FOGApacheFile"
-		sed -i "/RewriteRule \/management\/other\/ca.cert.der/r /tmp/$TempConf" "$FOGApacheFile"
-		rm /tmp/$TempConf
-		service apache2 reload
+			sed "/RewriteRule \/management\/other\/ca.cert.der/r /tmp/$TempConf" "$FOGApacheFile"
+			sed -i "/RewriteRule \/management\/other\/ca.cert.der/r /tmp/$TempConf" "$FOGApacheFile"
+			rm /tmp/$TempConf
+			service apache2 reload
+		else
+			echo "INFO : FOG Apache2 configuration file appears to be already patched, ignoring..."
+		fi
     else
         echo "INFO : FOG Apache2 configuration file appears to be in HTTP mode, ignoring..."
     fi
+    
+    # Buxfix : https://github.com/abotzung/foguefi/issues/4
+    touch "${docroot}${webroot}fog_login_accepted.log"
+    touch "${docroot}${webroot}fog_login_failed.log"
+    chmod 0200 "${docroot}${webroot}fog_login_accepted.log"
+    chmod 0200 "${docroot}${webroot}fog_login_failed.log"
+    chown www-data:www-data "${docroot}${webroot}fog_login_accepted.log"
+    chown www-data:www-data "${docroot}${webroot}fog_login_failed.log"
     
 	echo "==== Installation done ! ===="
 	echo ''
