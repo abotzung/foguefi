@@ -19,7 +19,7 @@ L'installation du patch est simple à réaliser :
 (les commandes doivent être exécutés en tant que root)
 sudo -i
 cd /opt
-git clone https://github/abotzung/foguefi.git
+git clone https://github.com/abotzung/foguefi.git
 cd foguefi
 ./install.sh
 
