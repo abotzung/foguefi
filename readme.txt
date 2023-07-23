@@ -5,7 +5,7 @@ Sorry, this document is only available in French (yet) !
                       Unofficial Secure Boot Patch
   Alexandre BOTZUNG [alexandre.botzung@grandest.fr] && The FOG Project Team
 https://github.com/abotzung/foguefi / https://github.com/FOGProject/fogproject
-                   VERSION : 20230307 (Licence : GPL-3)
+                   VERSION : 20230724 (Licence : GPL-3)
 ============================================================================
 
 Ces notes résument la liste des fonctionnalités ajoutés dans FOG Project.
