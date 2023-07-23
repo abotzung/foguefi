@@ -65,7 +65,7 @@ terminal-border: "4"
   align = "center"
   color = "gray"
   font = "Helvetica Regular 12"
-  text = "MOD_UEFI Secure Boot - The FOG Project Team & Alex Botzung (v:20230501)"
+  text = "MOD_UEFI Secure Boot - The FOG Project Team & Alex Botzung (v:20230724)"
 }
 
 #+ circular_progress {

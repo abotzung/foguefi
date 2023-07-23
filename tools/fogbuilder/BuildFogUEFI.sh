@@ -1,584 +1,477 @@
 #!/bin/bash
+#============================================================================
+#              F O G    P R O J E C T    v 1 . 5 . 10 . x
+#                    Unofficial Secure Boot Patch
+#             FOGUefi (https://github.com/abotzung/foguefi)
 #
-# *** Rebuild the FOG Stub with the project/ folder
-#
-# @category FOGStub
-# @package  FOGUefi
-# @author   Alexandre Botzung <alexandre.botzung@grandest.fr>
-# @license  http://opensource.org/licenses/gpl-3.0 GPLv3
-# @link     https://github.com/abotzung/foguefi
-#
+# Auteur       : Alexandre BOTZUNG [alexandre.botzung@grandest.fr]
+# Auteur       : The FOG Project team (https://github.com/FOGProject/fogproject)
+# Version      : 20230724
+# Licence      : http://opensource.org/licenses/gpl-3.0
+#============================================================================ 
 #
 # Génère le nouveau FOG Operating system "FOG Stub" à partir de Clonezilla et du dernier init.xz en date
 #
-# NOTE : dialog, dtach efiboot*, framebuffer-vncserver && socat sont des fichiers binaires
-#        dialog, dtach efiboot* et socat proviennent de la distribution en cours (Debian 11 au moment de la création de ce dossier)
+# NOTE : dialog, dtach efiboot*, framebuffer-vncserver && socat sont des fichiers binaires récupérés depuis les sources d'Ubuntu (lunar)
 #        framebuffer-vncserver a été compilé depuis le dossier tools/
 #
 #
-# ---vvv------------ Le répertoire racine pour FOG Builder
-basedir=$PWD
-# ---vvv------------ Quelques constantes. . .
-basedir_sources="$basedir/sources"
-basedir_temp="$basedir/temp"
-basedir_rootfs="$basedir/rootfs"
-basedir_project="$basedir/project"
-basedir_release="$basedir/release"
+source "./funct.sh"
 
-[[ ! -d "$basedir_sources" ]] && mkdir "$basedir_sources"
-[[ ! -d "$basedir_temp" ]] && mkdir "$basedir_temp"
-[[ ! -d "$basedir_rootfs" ]] && mkdir "$basedir_rootfs"
-[[ ! -d "$basedir_project" ]] && mkdir "$basedir_project"
-[[ ! -d "$basedir_release" ]] && mkdir "$basedir_release"
+if [ ! -f "/opt/fog/.fogsettings" ]; then
+	# FOG Installation not found ? ; abort NOW!
+	throw_error 1 "FOG installation not found on this host." "(main) - (${LINENO})"
+fi
 
-clonezilla_iso="$basedir_sources/clonezilla_lastest.iso"
-# !!! ATTENTION !!! Comme FOG à besoin d'un GRUB signée ayant le module http + smbios inclus, 
-#   il est nécessaire de démarrer le système avec le GRUB signed de Ubuntu (car celui de Debian ne l'a pas).
-#   Comme shim est signée par Microsoft, qui valide la signature de GRUB, qui valide la signature du kernel Linux, il est IMPERATIF d'utiliser la saveur "Ubuntu" de Clonezilla.
-#   La version Debian ne fonctionne pas ; elle provoquera un "Bad shim signature" au démarrage.
-clonezilla_iso_url="https://sourceforge.net/projects/clonezilla/files/clonezilla_live_alternative/20230426-lunar/clonezilla-live-20230426-lunar-amd64.iso/download"
+source "/opt/fog/.fogsettings"
 
-
-# C'est moyen cool, mais ça fera l'affaire pour quelques bidouilles...
-# file ./...filesystem : ./iso/live/filesystem.squashfs: Squashfs filesystem, little endian, version 4.0, xz compressed(...)
-hardcoded_clonezilla_iso_filesystem="$basedir_temp/iso/live/filesystem.squashfs"
-
-# file ./...vmlinuz : ./iso/live/vmlinuz: Linux kernel x86 boot executable bzImage, version 5.17.0-2-amd64 (...)
-hardcoded_clonezilla_iso_linuxkrnl="$basedir_temp/iso/live/vmlinuz"
-
-
-foginit_xz="$basedir_sources/foginit_latest.xz"
+# ---- [URL] : Where to download FOS Filesystem ----------------
 foginit_xz_url="https://github.com/FOGProject/fos/releases/latest/download/init.xz"
 
-flag_sourcesok="$basedir_sources/sources_ok"
+# ---- [APT] : Parameters of the repositories used for download DEB packages
+urlRepo="http://cz.archive.ubuntu.com/ubuntu"
+distroName="lunar"
+depotName="main universe"
 
-[ -z "$basedir" ] && eval 'echo "Il manque variables.sh, je ne peut rien faire !";exit 1'
-[ -z "$basedir_sources" ] && eval 'echo "basedir_sources ne semble pas correctement configurée, j'\''arrête là !";exit 1'
-[ -z "$basedir_temp" ] && eval 'echo "basedir_temp ne semble pas correctement configurée, j'\''arrête là !";exit 1'
-[ -z "$basedir_rootfs" ] && eval 'echo "basedir_rootfs ne semble pas correctement configurée, j'\''arrête là !";exit 1'
+cpio_release_filename='fog_uefi.cpio.xz'
+
+
+foginit_xz="$(get_basedir_sources)/foginit_latest.xz"
 
 [ -z "$foginit_xz" ] && eval 'echo "foginit_xz ne semble pas correctement configurée, j'\''arrête là !";exit 1'
-[ -z "$clonezilla_iso" ] && eval 'echo "clonezilla_iso ne semble pas correctement configurée, j'\''arrête là !";exit 1'
-[ -z "$flag_sourcesok" ] && eval 'echo "flag_sourcesok ne semble pas correctement configurée, j'\''arrête là !";exit 1'
 [ -z "$foginit_xz_url" ] && eval 'echo "foginit_xz_url ne semble pas correctement configurée, j'\''arrête là !";exit 1'
-[ -z "$clonezilla_iso_url" ] && eval 'echo "clonezilla_iso_url ne semble pas correctement configurée, j'\''arrête là !";exit 1'
-[ -z "$basedir_release" ] && eval 'echo "basedir_release ne semble pas correctement configurée, j'\''arrête là !";exit 1'
-[ -z "$basedir_project" ] && eval 'echo "basedir_project ne semble pas correctement configurée, j'\''arrête là !";exit 1'
 
-
-# TODO : chmod -R -v +x ./project/*
-
-if [ ! -f "$clonezilla_iso" ]; then
-    echo "I'm missing Clonezilla ISO ($clonezilla_iso), trying to download it . . ."
-	echo "---------------------------------------------------------------"
-	echo "======> I'm downloading latest Clonezilla ubuntu amd64 ISO. . . "
-	echo "---------------------------------------------------------------"
-	wget -O "$clonezilla_iso" "$clonezilla_iso_url"
-	retval=$?
-	if [ $retval -ne 0 ]; then
-		echo "ERROR while downloading Clonezilla ISO:"
-		echo "$clonezilla_iso_url -> $clonezilla_iso"
-		echo "Réalisez le téléchargement à la main, puis réessayez."
-		# Nettoie l'image dans le doute
-		rm "$clonezilla_iso"
-		exit 1
-	fi
-	if [ ! -f "$clonezilla_iso" ]; then
-		# on reteste. Si il manque toujours l'iso, c'est que ça s'est Malpasset
-		echo "ERROR ! Clonezilla ISO is missing ($clonezilla_iso)"
-		exit 1
-	fi
-fi
-if [ ! -f "$foginit_xz" ]; then
-    echo "I'm missing STUB Fog 'FOS' ($foginit_xz), trying to download it . . ."
-	echo "-------------------------------------------------------"
-	echo "=========> I'm downloading latest STUB Fog 'FOS'  . . . "
-	echo "-------------------------------------------------------"
-	wget -O "$foginit_xz" "$foginit_xz_url"
-	retval=$?
-	# v v v ERREUR ICI v v v 
-	if [ $retval -ne 0 ]; then
-		echo "ERROR while downloading STUB Fog 'FOS' :"
-		echo "$foginit_xz_url -> $foginit_xz"
-		echo "Réalisez le téléchargement à la main, puis réessayez."
-		# Nettoie l'image dans le doute
-		rm "$foginit_xz"
-		exit 1
-	fi
-	if [ ! -f "$foginit_xz" ]; then
-		# on reteste. Si il manque toujours, c'est que ça s'est Malpasset
-		echo "ERROR ! STUB Fog 'FOS' is missing ($foginit_xz)"
-		exit 1
-	fi
-fi
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ TODO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Bon ben l'installateur est à refaire. Ce qui va prendre du temps.
+# 1. Récupérer les ressources (FOGInit + Kernel Linux + Modules + Shim + Grub) -> Manipuler les paquets
+# 2. Faire la sauce comme d'habitude.
+#
+#
 
 echo ""
 echo "=-=-=-=-=-=-=-=-=-=-=- FOG STUB reBUILDER - Alexandre BOTZUNG -=-=-=-=-=-=-=-=-=-=-=-=-="
 echo ""
 
+do_log "=-=-=-=-=-=-=-=-=-=-=- FOG STUB reBUILDER - Alexandre BOTZUNG -=-=-=-=-=-=-=-=-=-=-=-=-="
+do_log "Starting at $(date)"
+
 # On est jamais trop sur ! 
-echo "-------------------------------------------------------"
-echo "  ============> Cleaning the temp folder . . . "
-umount "$basedir_temp"/*
-rm -rf "${basedir_temp:?}"/*
+dots "Cleaning the temp folder"
+umount -v "$(get_basedir_temp)"/* >> "$do_logfile" 2>&1
+rm -rfv "$(get_basedir_temp)"/* >> "$do_logfile" 2>&1
+msg_finished "Done"
 
-echo "-------------------------------------------------------"
-echo "  ============> Cleaning the release folder . . . "
-rm -rf "${basedir_release:?}"/*
+dots "Cleaning the release folder"
+rm -rfv "$(get_basedir_release)"/* >> "$do_logfile" 2>&1
+msg_finished "Done"
 
-echo "-------------------------------------------------------"
-echo "  ============> Cleaning the rootfs folder . . . "
-rm -rf "${basedir_rootfs:?}"/*
+dots "Cleaning the rootfs folder"
+rm -rfv "$(get_basedir_rootfs)"/* >> "$do_logfile" 2>&1
+msg_finished "Done"
 
-echo "-------------------------------------------------------"
-echo " => Create a backup of this tool  . . . "
-# TODO : A Supprimer 
-# Crée une photocopie de ce script vers le project afin d'avoir une copie viable de l'outil.
-# Créé aussi un SHA256 de tous les fichiers du projets.
-mkdir "$basedir_project"/build/FOG_BUILDER
-# Vide le dossier pour avoir les sources à jour.
-rm -rf "$basedir_project"/build/FOG_BUILDER/*
+dots "Create a marker with the creation date"
+mkdir -v "$(get_basedir_project)"/build/FOG_BUILDER >> "$do_logfile" 2>&1
+date > "$(get_basedir_project)"/build/FOG_BUILDER/buildtime 
+msg_finished "Done"
 
-cp "$basedir"/BuildFogUEFI.sh "$basedir_project"/build/FOG_BUILDER
-cp "$basedir"/clean_buildEnvironment.sh "$basedir_project"/build/FOG_BUILDER
-cp "$basedir"/refresh_EnvironmentSources.sh "$basedir_project"/build/FOG_BUILDER
-cp "$basedir"/variables.sh "$basedir_project"/build/FOG_BUILDER/variables.sh_EditME
-
-echo '#!/bin/bash' > "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-echo '# Rebuild source folder from files inside Initrd' >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-echo '# variable source_dir is the source folder (eg : /tmp/cpio_unpacked/)' >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-echo '# variable dest_dir is the destination folder (eg : /root/source)' >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-sha256_file=$(sha256sum "$clonezilla_iso")
-sha256_file_stripped=$(printf '%s\n' "${sha256_file//$basedir/}")
-ls_al_file=$(ls -al "$clonezilla_iso")
-ls_al_file_stripped=$(printf '%s\n' "${ls_al_file//$basedir/}")
-echo "# Build with Clonezilla ISO (${clonezilla_iso_url})" >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-echo "# SHA256:${sha256_file_stripped}" >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-echo "# $ls_al_file_stripped" >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-sha256_file=$(sha256sum "$foginit_xz")
-sha256_file_stripped=$(printf '%s\n' "${sha256_file//$basedir/}")
-ls_al_file=$(ls -al "$foginit_xz")
-ls_al_file_stripped=$(printf '%s\n' "${ls_al_file//$basedir/}")
-echo "# Build with FOG init.xz (${foginit_xz_url})" >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-echo "# SHA256:${sha256_file_stripped}" >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-echo "# $ls_al_file_stripped" >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-
-# Etape 1 ; liste les dossiers
-for f in $(find "$basedir_project"); do
-  if [[ -d "$f" ]]; then
-	fldr=$(printf '%s\n' "${f//$basedir_project/}")
-	if [[ -n "$fldr" ]]; then
-		echo "mkdir \${dest_dir}$fldr" >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-	fi
-  fi
-done
-
-# Etape 2 ; liste les fichiers
-for f in $(find "$basedir_project"); do
-  if [[ ! -d "$f" ]]; then
-	file=$(printf '%s\n' "${f//$basedir_project/}")
-	if [[ -n "$file" ]]; then
-		sha256_file=$(sha256sum "$f")
-		sha256_file_stripped=$(printf '%s\n' "${sha256_file//$basedir_project/}")
-		ls_al_file=$(ls -al "$f")
-		ls_al_file_stripped=$(printf '%s\n' "${ls_al_file//$basedir_project/}")
-		echo "# SHA256:$sha256_file_stripped" >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-		echo "# LS -al:$ls_al_file_stripped" >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-		echo "cp \"\${source_dir}$file\" \"\${dest_dir}$file\"" >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-	fi
-  fi
-done
-
-echo 'echo Done' >> "$basedir_project"/build/FOG_BUILDER/RebuildSourceFolderFromINITRD.sh
-
-date > "$basedir_project"/build/FOG_BUILDER/buildtime
-
-echo "-------------------------------------------------------"
-echo "  ============> Mounting Clonezilla ISO . . ."
-mkdir "$basedir_temp/iso"
-mount "$clonezilla_iso" "$basedir_temp/iso"
+dots "Downloading FOS latest"
+wget -v -O "$foginit_xz" "$foginit_xz_url" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande mount ! ! ! ! !"
-	exit 1
+	throw_error 1 "Unable to download FOS latest (${foginit_xz_url})." "${FUNCNAME} - (${LINENO})"
 fi
+msg_finished "Downloaded"
 
-echo "----------------------------------------------------------"
-echo "  ============> Copying Clonezilla's squashfs . . . "
-cp "$hardcoded_clonezilla_iso_filesystem" "$basedir_temp/clonezille_filesystem.squashfs"
+dots "Init apt Ubuntu repositories"
+init_apt_repo "${urlRepo}" "${distroName}" "${depotName}"
+msg_finished "Done"
+
+dots "Downloading (+converting) linux-image-generic"
+download_a_package "linux-image-generic" >> "$do_logfile" # linux-image-generic as a dependancy to linux-modules-* (+extra)
+msg_finished "Downloaded"
+
+dots "Downloading (+converting) shim-signed"
+download_a_package "shim-signed" >> "$do_logfile"
+msg_finished "Downloaded"
+
+dots "Downloading (+converting) grub-efi-amd64-signed"
+download_a_package "grub-efi-amd64-signed" >> "$do_logfile"
+msg_finished "Downloaded"
+
+# -------- Add HERE packages to be downloaded from Ubuntu repositories
+pkgdl_keeppkg=""
+
+
+dots "Downloading (+converting) dialog"
+download_a_package "dialog" >> "$do_logfile"
+msg_finished "Downloaded"
+
+dots "Downloading (+converting) memtester"
+download_a_package "memtester" >> "$do_logfile"
+msg_finished "Downloaded"
+
+dots "Downloading (+converting) dtach"
+download_a_package "dtach" >> "$do_logfile"
+msg_finished "Downloaded"
+
+dots "Downloading (+converting) socat"
+download_a_package "socat" >> "$do_logfile"
+msg_finished "Downloaded"
+
+dots "Downloading (+converting) wimtools"
+download_a_package "wimtools" >> "$do_logfile"
+msg_finished "Downloaded"
+
+dots "Unpacking dialog (DEB)"
+unpack_debs "dialog" >> "$do_logfile"
+msg_finished "Done"
+
+dots "Unpacking memtester (DEB)"
+unpack_debs "memtester" >> "$do_logfile"
+msg_finished "Done"
+
+dots "Unpacking dtach (DEB)"
+unpack_debs "dtach" >> "$do_logfile"
+msg_finished "Done"
+
+dots "Unpacking socat (DEB)"
+unpack_debs "socat" >> "$do_logfile"
+msg_finished "Done"
+
+dots "Unpacking wimtools (DEB)"
+unpack_debs "wimtools" >> "$do_logfile"
+msg_finished "Done"
+#-------------------------------------
+
+
+
+
+dots "Unpacking linux-image-generic (DEB)"
+unpack_debs "linux-image-generic" >> "$do_logfile"
+msg_finished "Done"
+
+dots "Unpacking shim-signed (DEB)"
+unpack_debs "shim-signed" >> "$do_logfile"
+msg_finished "Done"
+
+dots "Unpacking grub-efi-amd64-signed (DEB)"
+unpack_debs "grub-efi-amd64-signed" >> "$do_logfile"
+msg_finished "Done"
+
+dots "Searching linux-image-generic Kernel"
+search_for_linux-image-generic "linux-image-generic"
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande cp ! ! ! ! !"
-	exit 1
+	throw_error 2 "Unable to find Linux kernel into deb output package." "${FUNCNAME} - (${LINENO})"
 fi
+if [ ! -f "$PATH_LinuxKernel" ] # This is a FILE
+then
+	throw_error 3 "Unable to find Linux kernel file into deb output package." "${FUNCNAME} - (${LINENO})"
+fi
+msg_finished "Found"
 
-echo "-------------------------------------------------------------"
-echo "  ============> Copying Clonezilla's signed Linux kernel. . . "
-cp "$hardcoded_clonezilla_iso_linuxkrnl" "$basedir_release/linux_clonezilla"
+dots "Searching linux-modules"
+search_for_linux-modules "linux-image-generic"
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande cp ! ! ! ! !"
-	exit 1
+	# Maybe download here linux-modules (+extra) ? 
+	throw_error 4 "Unable to find Linux modules into deb output package." "${FUNCNAME} - (${LINENO})"
 fi
+if [ ! -d "$PATH_LinuxModules" ] # This is a FOLDER
+then
+	throw_error 5 "Unable to find Linux modules directory into deb output package." "${FUNCNAME} - (${LINENO})"
+fi
+msg_finished "Found"
 
-echo "-------------------------------------------------------------"
-echo "  ====> I'm done with Clonezilla ISO, umounting it . . . "
-umount "$basedir_temp/iso"
+dots "Searching shim-signed shimx64.efi.signed"
+search_for_shimx64 "shim-signed"
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande umount ! ! ! ! !"
-	exit 1
+	throw_error 6 "Unable to find shimX64.efi.* into deb output package." "${FUNCNAME} - (${LINENO})"
 fi
-rm -rf "$basedir_temp/iso"
+if [ ! -f "$PATH_ShimX64" ] # This is a FILE
+then
+	throw_error 7 "Unable to find shimX64.efi.* into deb output package." "${FUNCNAME} - (${LINENO})"
+fi
+msg_finished "Found"
 
-echo "-------------------------------------------------------"
-echo "  ===========> Mounting Clonezilla squashfs. . . "
-mkdir "$basedir_temp/squash"
-mount "$basedir_temp/clonezille_filesystem.squashfs" "$basedir_temp/squash"
+dots "Searching grub-efi-amd64-signed grubnetx64.efi"
+search_for_grubnetx64 "grub-efi-amd64-signed"
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande mount squashfs ! ! ! ! !"
-	exit 1
+	throw_error 8 "Unable to find grubnetx64.efi.* into deb output package." "${FUNCNAME} - (${LINENO})"
 fi
-echo "-------------------------------------------------------"
-echo "  ================> Determining Linux distro type. . . "
-if [ ! -f "$basedir_temp/squash/etc/lsb-release" ]
+if [ ! -f "$PATH_GrubNETX64" ] # This is a FILE
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR while checking if lsb-release exists ! ! ! !"
-	echo " --- FILE NOT FOUND - UNABLE TO DETERMINE LiNUX DISTRO ---"
-	exit 1
+	throw_error 9 "Unable to find grubnetx64.efi.* into deb output package." "${FUNCNAME} - (${LINENO})"
 fi
-# Try to load distro parameters...
-DISTRIB_ID="" #Ubuntu
-DISTRIB_RELEASE="" #22.10
-DISTRIB_CODENAME="" #kinetic
-#DISTRIB_DESCRIPTION="" #"Ubuntu 22.10"
-source "$basedir_temp"/squash/etc/lsb-release
+msg_finished "Found"
 
-if [[ ! "$DISTRIB_ID" == *"Ubuntu"* ]]
-then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR while checking file lsb-release : DISTRIB_ID unknown ! ! ! !"
-	echo " --- DISTRIB_ID = $DISTRIB_ID ---"
-	exit 1
-fi
-echo " INFO : Ok, Clonezilla distribution is $DISTRIB_ID $DISTRIB_RELEASE ($DISTRIB_CODENAME)"
-echo " I'm gonna download shim-signed and grub-efi-amd64-signed for Ubuntu $DISTRIB_CODENAME"
-echo " !!! HERE BE DRAGONS !!!"
-sleep 3
-
-# This is very wrong, but the easyest methods i know so far ~Alex
-# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= 
-
-#ubuntu_ver="jammy"
-
-ARY_DLlink_shim=($(wget -q -O - https://packages.ubuntu.com/$DISTRIB_CODENAME/amd64/shim-signed/download | grep -io '<a href=['"'"'"][^"'"'"']*['"'"'"]' |   sed -e 's/^<a href=["'"'"']//i' -e 's/["'"'"']$//i' |grep .deb))
-ARY_DLlink_grub=($(wget -q -O - https://packages.ubuntu.com/$DISTRIB_CODENAME/amd64/grub-efi-amd64-signed/download | grep -io '<a href=['"'"'"][^"'"'"']*['"'"'"]' |   sed -e 's/^<a href=["'"'"']//i' -e 's/["'"'"']$//i' |grep .deb))
-
-
-#lineSHIM=$RANDOM
-#let "lineSHIM %= ${#ARY_DLlink_shim[@]}"
-#lineGRUB=$RANDOM
-#let "lineGRUB %= ${#ARY_DLlink_grub[@]}"
-#wget -O $basedir_temp/shim.deb ${ARY_DLlink_shim[$lineSHIM]}
-#wget -O $basedir_temp/grub.deb ${ARY_DLlink_grub[$lineGRUB]}
-
-# A better way to tests if download succeed... still good enough for me ^^'
-for t in "${ARY_DLlink_shim[@]}"
-do
-  rm "${basedir_temp:?}"/shim.deb
-  wget -q --no-check-certificate --timeout=10 -O "$basedir_temp"/shim.deb "$t" > /dev/null
-  errlvl=$?
-  if [ $errlvl -ne "0" ]; then
-	echo "Download failed, trying next server..."
-	sleep 1
-  else
-    dl_succeed=1
-	break
-  fi
-done
-if [ $dl_succeed -ne "1" ]; then
-	echo "! ! ! ! ! ERROR while DOWNLOADING shim-signed ! ! ! ! !"
-	echo "Download for https://packages.ubuntu.com/$DISTRIB_CODENAME/amd64/shim-signed/download FAILED ! "
-	exit 1
-fi
-
-for t in "${ARY_DLlink_grub[@]}"
-do
-  rm "${basedir_temp:?}"/grub.deb
-  wget -q --no-check-certificate --timeout=10 -O "$basedir_temp"/grub.deb "$t" > /dev/null
-  errlvl=$?
-  if [ $errlvl -ne "0" ]; then
-	echo "Download failed, trying next server..."
-	sleep 1
-  else
-	dl_succeed=1
-	break
-  fi
-done
-if [ $dl_succeed -ne "1" ]; then
-	echo "! ! ! ! ! ERROR while DOWNLOADING grub-efi-amd64-signed ! ! ! ! !"
-	echo "Download for https://packages.ubuntu.com/$DISTRIB_CODENAME/amd64/grub-efi-amd64-signed/download FAILED ! "
-	exit 1
-fi
-# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-# Quel bordel...vivement que dpkg supporte zstd (!)
-echo "-------------------------------------------------------------"
-echo "  ========> Extracting shim.deb . . . "
-mkdir "$basedir_temp"/shim_out_intermediate
-mkdir "$basedir_temp"/shim_out
-ar -x --output="$basedir_temp"/shim_out_intermediate "$basedir_temp"/shim.deb
+dots "Copying signed Linux kernel"
+cp -v "$PATH_LinuxKernel" "$(get_basedir_release)/linux_kernel" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR while extracting files from shim.deb ! ! ! ! !"
-	exit 1
+	throw_error 10 "Unable to copy $PATH_LinuxKernel into release folder." "${FUNCNAME} - (${LINENO})"
 fi
-echo "-------------------------------------------------------------"
-echo "  ========> Extracting shim ressources . . . "
-tar -C "$basedir_temp"/shim_out -xf "$basedir_temp"/shim_out_intermediate/data.tar.* 
+msg_finished "Done (./release/linux_kernel)"
+
+dots "Copying shimX64.efi.signed"
+cp -v "$PATH_ShimX64" "$(get_basedir_release)/shimx64.efi" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR while extracting shim ressources ! ! ! ! !"
-	exit 1
+	throw_error 11 "Unable to copy $PATH_ShimX64 into release folder." "${FUNCNAME} - (${LINENO})"
 fi
-echo "-------------------------------------------------------------"
-echo "  ========> Extracting grub.deb . . . "
-mkdir "$basedir_temp"/grub_out_intermediate
-mkdir "$basedir_temp"/grub_out
-ar -x --output="$basedir_temp"/grub_out_intermediate "$basedir_temp"/grub.deb
+msg_finished "Done (./release/shimx64.efi)"
+
+dots "Copying grubnetx64.efi.signed"
+cp -v "$PATH_GrubNETX64" "$(get_basedir_release)/grubx64.efi" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR while extracting files from grub.deb ! ! ! ! !"
-	exit 1
+	throw_error 12 "Unable to copy $PATH_GrubNETX64 into release folder." "${FUNCNAME} - (${LINENO})"
 fi
-echo "-------------------------------------------------------------"
-echo "  ========> Extracting grub ressources . . . "
-tar -C "$basedir_temp"/grub_out -xf "$basedir_temp"/grub_out_intermediate/data.tar.* 
+msg_finished "Done (./release/grubx64.efi)"
+
+dots "Copying init.xz to temp folder"
+cp -v "$foginit_xz" "$(get_basedir_temp)/foginit.xz" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR while extracting grub ressources ! ! ! ! !"
-	exit 1
+	throw_error 13 "Unable to copy init.xz into temp folder." "${FUNCNAME} - (${LINENO})"
 fi
+msg_finished "Done"
 
-
-echo "-------------------------------------------------------------"
-echo "  ========> Copying shimx64.efi.signed.latest . . . "
-shimx64=$(find "$basedir_temp/shim_out" -name shimx64.efi.signed.latest| head -n 1)
-if [ ! -f "$shimx64" ]
-then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! WARNING : shimx64.efi.signed.latest is nowhere to be found ! ! ! ! !"
-	echo " Retrying with shimx64.efi.signed..."
-	shimx64_std=$(find "$basedir_temp/shim_out" -name shimx64.efi.signed| head -n 1)
-		if [ ! -f "$shimx64_std" ]
-		then
-			echo "ERRLVL : $?"
-			echo "! ! ! ! ! ERROR : shimx64.efi.signed is nowhere to be found ! ! ! ! !"
-			exit 1
-		else
-			shimx64="$shimx64_std"
-		fi
-fi
-
-cp "$shimx64" "$basedir_release/shimx64.efi"
+dots "Uncompressing foginit.xz to 'foginit'"
+xz --decompress "$(get_basedir_temp)/foginit.xz" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR while copying $shimx64 (shimx64.efi) ! ! ! ! !"
-	exit 1
+	throw_error 14 "Unable to uncompresss foginit.xz into temp folder." "${FUNCNAME} - (${LINENO})"
 fi
+msg_finished "Done"
 
-echo "-------------------------------------------------------------"
-echo "  ========> Copying grubnetx64.efi.signed . . . "
-grubnetboot=$(find "$basedir_temp"/grub_out -name grubnetx64.efi.signed| head -n 1)
-if [ ! -f "$grubnetboot" ]
-then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR : grubnetx64.efi.signed is nowhere to be found ! ! ! ! !"
-	exit 1
-fi
-cp "$grubnetboot" "$basedir_release/grubx64.efi"
+dots "Mounting foginit (ext2)"
+mkdir -v "$(get_basedir_temp)/init_fog" >> "$do_logfile" 2>&1
+mount -v "$(get_basedir_temp)/foginit" "$(get_basedir_temp)/init_fog" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERROR while copying grubnetx64.efi.signed ! ! ! ! !"
-	exit 1
+	throw_error 15 "Unable to mount foginit." "${FUNCNAME} - (${LINENO})"
 fi
-# On a ENFIN FINI de faire joujou avec shim && gub signed, on reprends la sauce
-# =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-echo "-------------------------------------------------------------"
-echo "  ========> Copying init.xz to temp folder . . . "
-cp "$foginit_xz" "$basedir_temp/foginit.xz"
+msg_finished "Done"
+
+# ===== HERE, copy packages into rootfs...=================================================================
+
+dots "Copying dialog"
+cp -rvf "$(get_basedir_temp)/dialog/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande cp ! ! ! ! !"
-	exit 1
+	throw_error 25 "Unable to copy dialog into dialog folder." "${FUNCNAME} - (${LINENO})"
 fi
+# PATCH : The package 'dialog' add file /bin/run-parts, wich collide with FOS filesystem (and ulimately creates a Kernel Panic)
+rm "$(get_basedir_rootfs)/bin/run-parts" || throw_error 24 "Unable to cleanup /bin/run-parts from the rootfs folder." "${FUNCNAME} - (${LINENO})"
+msg_finished "Done"
 
-echo "-------------------------------------------------------------"
-echo "  =============> Uncompressing foginit.xz to 'foginit' . . . "
-xz --decompress "$basedir_temp/foginit.xz"
+dots "Copying memtester"
+cp -rvf "$(get_basedir_temp)/memtester/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande xz ! ! ! ! !"
-	exit 1
+	throw_error 26 "Unable to copy memtester into rootfs folder." "${FUNCNAME} - (${LINENO})"
 fi
+msg_finished "Done"
 
-echo "-------------------------------------------------------------"
-echo "  ============================> Mounting foginit (ext2). . . "
-mkdir "$basedir_temp/init_fog"
-mount "$basedir_temp/foginit" "$basedir_temp/init_fog"
+dots "Copying dtach"
+cp -rvf "$(get_basedir_temp)/dtach/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande mount ! ! ! ! !"
-	exit 1
+	throw_error 27 "Unable to copy dtach into rootfs folder." "${FUNCNAME} - (${LINENO})"
 fi
-
-echo "-------------------------------------------------------------"
-echo "  ================> Copying FOG 'FOS' rootfs to ./rootfs. . . "
-cp -rv "$basedir_temp"/init_fog/* "$basedir_rootfs" > /dev/null 2>&1
+msg_finished "Done"
+dots "Copying socat"
+cp -rvf "$(get_basedir_temp)/socat/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande cp ! ! ! ! !"
-	exit 1
+	throw_error 28 "Unable to copy socat into rootfs folder." "${FUNCNAME} - (${LINENO})"
 fi
+msg_finished "Done"
 
-echo "-------------------------------------------------------------"
-echo "  => I'm done with FOG 'FOS' rootfs 'foginit', umounting it. "
-umount "$basedir_temp/init_fog"
+dots "Copying wimtools"
+cp -rvf "$(get_basedir_temp)/wimtools/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande umount ! ! ! ! !"
-	exit 1
+	throw_error 28 "Unable to copy wimtools into rootfs folder." "${FUNCNAME} - (${LINENO})"
 fi
-rm -rf "$basedir_temp/init_fog"
+msg_finished "Done"
+# ==================================================================================================================================
 
-echo "-------------------------------------------------------------"
-echo "  ========> Cleaning old modules from 'FOS' rootfs. . . "
-rm -rf "$basedir_rootfs"/lib/modules/*
+# PATCH : Some packages can be refering to /lib64. But /lib64 dosen't exist into the FOS Filesystem.
+dots "Moving rootfs /lib64 to /lib (+cleaning)"
+cp -rvd "$(get_basedir_rootfs)"/lib64/* "$(get_basedir_rootfs)/lib/" >> "$do_logfile" 2>&1
+rm -rfv "$(get_basedir_rootfs)"/lib64  >> "$do_logfile" 2>&1
+msg_finished "Done"
+
+# PATCH : Some packages can be refering to /var/cache. FOS Filesystem mention it, i wipe it.
+dots "Cleaning rootfs '/var/cache'"
+rm -rfv "$(get_basedir_rootfs)"/var/cache  >> "$do_logfile" 2>&1
+msg_finished "Done"
+
+dots "Copying 'FOS' rootfs to ./rootfs"
+cp -rvf "$(get_basedir_temp)"/init_fog/* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande rm ! ! ! ! !"
-	exit 1
+	throw_error 16 "Unable to copy FOS rootfs to $(get_basedir_rootfs)" "${FUNCNAME} - (${LINENO})"
 fi
+msg_finished "Done"
 
-echo "-------------------------------------------------------------"
-echo "  =====> Copying Clonezilla modules to the new rootfs. . . "
-cp -rv "$basedir_temp"/squash/usr/lib/modules "$basedir_rootfs/lib/modules" > /dev/null 2>&1
+dots "I'm done with FOG 'FOS' rootfs 'foginit', umounting it."
+umount -v "$(get_basedir_temp)/init_fog" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande cp ! ! ! ! !"
-	exit 1
+	throw_error 17 "Unable to unmount FOS rootfs." "${FUNCNAME} - (${LINENO})"
 fi
+msg_finished "Done"
 
-echo "-------------------------------------------------------------"
-echo "  ====> I'm done with Clonezilla squashfs, umounting it. . . "
-umount "$basedir_temp/squash"
+dots "Cleaning old modules from 'FOS' rootfs"
+rm -rfv "$(get_basedir_rootfs)"/lib/modules/* >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande umount ! ! ! ! !"
-	exit 1
+	throw_error 18 "Unable to clean old modules." "${FUNCNAME} - (${LINENO})"
 fi
+msg_finished "Done"
 
-echo "-------------------------------------------------------------"
-echo "  =====> CHMODing new modules with the right permissions. . . "
-chmod -R 0755 "$basedir_rootfs/lib/modules"
+dots "Copying Linux modules to the new rootfs"
+#cp -rv "$(get_basedir_temp)"/squash/usr/lib/modules "$basedir_rootfs/lib/modules" > /dev/null 2>&1
+RootofModules=$(echo "${PATH_LinuxModules}" | xargs dirname)
+cp -rv "$RootofModules" "$(get_basedir_rootfs)"/lib/modules >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande chmod ! ! ! ! !"
-	exit 1
+	throw_error 19 "Unable to transfer new modules to rootfs." "${FUNCNAME} - (${LINENO})"
 fi
+msg_finished "Done"
 
-echo "-------------------------------------------------------------"
-echo "  =======================> Cleaning inused modules. . . "
+dots "CHMODing new modules with the right permissions"
+chmod -Rv 0755 "$(get_basedir_rootfs)/lib/modules" >> "$do_logfile" 2>&1
+if [ $? -ne 0 ]
+then
+	throw_error 20 "Unable to transfer new modules to rootfs." "${FUNCNAME} - (${LINENO})"
+fi
+msg_finished "Done"
 
-[ -z "$basedir_rootfs" ] && eval 'echo "basedir_rootfs ne semble pas correctement configurée, j'\''arrête là !";exit 1'
+
+dots "Cleaning inused modules"
 # Raison : Bruits dans les logs
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/input/evbug.ko -rf
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/input/evbug.ko -rfv >> "$do_logfile" 2>&1
 # Raison : Inutile
-rm "$basedir_rootfs"/lib/modules/*/kernel/sound -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/media -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/net/wireless -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/net/can -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/infiniband -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/comedi -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/bluetooth -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/gpu -rf
-# 97Mio -> 73.7 Mio (+23,3 Mio)
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/sound -rf
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/media -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/net/wireless -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/net/can -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/infiniband -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/comedi -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/bluetooth -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/gpu -rfv >> "$do_logfile" 2>&1
+
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/net/ethernet/mellanox -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/net/ethernet/chelsio -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/net/ethernet/qlogic -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/net/ethernet/sfc -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/net/ethernet/cavium -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/net/ethernet/dec -rfv >> "$do_logfile" 2>&1
+
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/iio -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/usb/ethernet/gadget -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/usb/ethernet/serial -rfv >> "$do_logfile" 2>&1
+rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/usb/ethernet/misc -rfv >> "$do_logfile" 2>&1
+msg_finished "Done"
 
 
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/net/ethernet/mellanox -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/net/ethernet/chelsio -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/net/ethernet/qlogic -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/net/ethernet/sfc -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/net/ethernet/cavium -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/net/ethernet/dec -rf
-# 73.7 Mio -> 70.7 Mio (+3 Mio)
-
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/iio -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/usb/ethernet/gadget -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/usb/ethernet/serial -rf
-rm "$basedir_rootfs"/lib/modules/*/kernel/drivers/usb/ethernet/misc -rf
-# 70.7 Mio -> 68.9 Mio (+1.8 Mio)
-
-
-echo "-------------------------------------------------------------"
-echo "  ==========> Copying folder project into the new rootfs. . . "
-cp -rvf "$basedir_project"/* "$basedir_rootfs" > /dev/null 2>&1
+dots "Copying folder project into the new rootfs"
+cp -rfv "$(get_basedir_project)"/* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
-	echo "ERRLVL : $?"
-	echo "! ! ! ! ! ERREUR lors de la commande cp ! ! ! ! !"
-	exit 1
+	throw_error 21 "Unable to copying folder project into the new rootfs." "${FUNCNAME} - (${LINENO})"
 fi
+msg_finished "Done"
 
+sysbasedir=$PWD
+cd "$(get_basedir_rootfs)" || throw_error 22 "Unable to change directory into $(get_basedir_rootfs)" "${FUNCNAME} - (${LINENO})"
+dots "CHMODing files into the rootfs"
+chmod -v -R +x "$(get_basedir_rootfs)"/ >> "$do_logfile" 2>&1
+msg_finished "Done"
 
+dots "Simulate ldconfig inside rootfs"
+simulateLdconfig
+msg_finished "Done"
 
-olddir=$PWD
-cd "$basedir_rootfs" || exit
-echo "-------------------------------------------------------------"
-echo "  ==========> CHMODing files into the rootfs. . . "
-chmod -R +x "$basedir_rootfs/"
+dots "Create ./dev/null special file"
+mknod "$(get_basedir_rootfs)/dev/null" c 1 3 >> "$do_logfile" 2>&1
+chmod -v 0666 "$(get_basedir_rootfs)/dev/null" >> "$do_logfile" 2>&1
+msg_finished "Done"
 
+dots "Convert the new rootfs into a CPIO"
+ln -sv ./bin/busybox ./init >> "$do_logfile" 2>&1
+msg_finished "Done"
 
+dots "Create the CPIO archive from the rootfs folder"
+echo ""
+find . 2>/dev/null | cpio -o -H newc -R root:root | xz -7 -T0 -C crc32 > "$(get_basedir_temp)"/newroot.xz
+cd "$sysbasedir" || throw_error 23 "Unable to change directory into ${sysbasedir}" "${FUNCNAME} - (${LINENO})"
+msg_finished "Finished"
 
-echo "-------------------------------------------------------------"
-echo "  ==========> Convert the new rootfs into a CPIO. . . "
-#~~~~~~~~~~~~~~~~~ PATCH DE DERNIERE MINUTE ~~~~~~~~~~~~~~~~~~~~
-# Comme on convertis un ext2 en cpio, le fichier de démarrage change.
-# Il passe de {/linuxrc,...} en {/init,...}. Il convient donc de réaliser
-#  un lien symbolique pour que la fs puisse être "amorcée".
-ln -s ./bin/busybox ./init
-echo "-------------------------------------------------------------"
-echo "  =====> Create the CPIO archive from the rootfs folder. . . "
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#find . 2>/dev/null | cpio -o -H newc -R root:root | xz -v -9 -T0 --format=lzma > $basedir_temp/newroot.xz
-find . 2>/dev/null | cpio -o -H newc -R root:root | xz -v -7 -T0 -C crc32 > "$basedir_temp"/newroot.xz
-#find . 2>/dev/null | cpio -o -H newc -R root:root | gzip > $olddir/$nomImage.gz
-#find . ! -name . | LC_ALL=C sort | cpio -o -H newc -R root:root | gzip > $olddir/$nomImage.gz
-cd "$olddir" || exit
+dots "Move the freshly created CPIO into release folder."
+mv -v "$(get_basedir_temp)"/newroot.xz "$(get_basedir_release)/${cpio_release_filename}" >> "$do_logfile" 2>&1
+msg_finished "Done (./release/${cpio_release_filename})"
 
-echo "-------------------------------------------------------------"
-echo "  => Move the freshly created CPIO into $basedir_release/fog_uefi.cpio.xz. . . "
-mv "$basedir_temp"/newroot.xz "$basedir_release/fog_uefi.cpio.xz"
+dots "Creating FOS USB Boot image...."
+buildUSBBoot
+msg_finished "Done (./release/usbboot.img)"
 
-echo "DONE !"
+dots "Move the USB Boot image into FOG client folder."
+mv -v "$(get_basedir_release)/usbboot.img" "${docroot}/fog/client/usbboot.img" >> "$do_logfile" 2>&1
+msg_finished "Done (${httpproto}://${ipaddress}${webroot}/client/usbboot.img)"
+
+# Patching FOG files to allow usbboot.img to be downloaded  (./fog/client/download.php)
+dots "! Patching FOG file (./fog/client/download.php)."
+tempfile="$(mktemp)"
+tempmanfile="$(mktemp)"
+if [ ! -f "$tempfile" ]; then
+	throw_error 30 "Error when creating a temp file." "${FUNCNAME} - (${LINENO})" 
+fi
+echo "<?php" > "$tempfile"
+echo "// #################################################################" >> "$tempfile"
+echo "// This file has been patched by the FOGUefi project"                 >> "$tempfile"
+echo "// Alexandre BOTZUNG (alexandre.botzung@grandest.fr)"                 >> "$tempfile"
+echo ""                                                                     >> "$tempfile"
+echo "// This patch is nedded for downloading usbboot.img via the webpage"  >> "$tempfile"
+echo "// If USB Boot is clicked, prep variable as the usbboot.img file."    >> "$tempfile"
+echo 'if (isset($_REQUEST["usbbootimage"])) {'                              >> "$tempfile"
+echo '    $filename = "usbboot.img";'                                       >> "$tempfile"
+echo '}'                                                                    >> "$tempfile"
+echo "// #################################################### END OF PATCH" >> "$tempfile"
+echo "?>" >> "$tempfile"
+
+# Copy download.php to temp
+cp -v "${docroot}/fog/client/download.php" "${tempmanfile}" >> "$do_logfile" 2>&1
+# Create the temp file (download.php) patched
+cat "${tempfile}" "${docroot}/fog/client/download.php" > "${tempmanfile}"
+# Rename download.php to download_old.php
+mv -v "${docroot}/fog/client/download.php" "${docroot}/fog/client/download_old.php" >> "$do_logfile" 2>&1
+# Disable execution of the old file
+chmod -v 0644 "${docroot}/fog/client/download_old.php" >> "$do_logfile" 2>&1
+# Move the patched file to FOG (download.php)
+mv -v "${tempmanfile}" "${docroot}/fog/client/download.php" >> "$do_logfile" 2>&1
+# Prep the file for execution
+chmod 0755 "${docroot}/fog/client/download.php"
+
+msg_finished "Done"
+
+# Replacing the FOG file clientmanagementpage.class.php to include the USB boot image panel
+dots "! Replacing FOG file (clientmanagementpage.class.php)."
+# Rename clientmanagementpage.class.php to clientmanagementpage.class_old.php
+mv -v "${docroot}/fog/lib/pages/clientmanagementpage.class.php" "${docroot}/fog/lib/pages/clientmanagementpage.class_old.php" >> "$do_logfile" 2>&1
+# Disable execution of the old file
+chmod -v 0644 "${docroot}/fog/lib/pages/clientmanagementpage.class_old.php" >> "$do_logfile" 2>&1
+# Copy file clientmanagementpage.class.php to ./fog/lib/pages
+cp -v "$(get_current_path)/fogproject_files/clientmanagementpage.class.php" "${docroot}/fog/lib/pages/clientmanagementpage.class.php" >> "$do_logfile" 2>&1
+# Enable execution of the new file
+chmod -v +x "${docroot}/fog/lib/pages/clientmanagementpage.class.php" >> "$do_logfile" 2>&1
+msg_finished "Done"
+
+msg_finished "ALL DONE * Exiting"
+exit 0

@@ -306,7 +306,7 @@ class GrubBootMenu extends FOGBase
         }
 
 		// Le kernel linux chargée par GRUB
-		$GRUB_UEFIKernel="linux_clonezilla";
+		$GRUB_UEFIKernel="linux_kernel";
 		// L'initrd chargée par GRUB
 		$GRUB_UEFIinitrd="fog_uefi.cpio.xz";
 		
@@ -457,11 +457,36 @@ class GrubBootMenu extends FOGBase
         );
         $this->_ipxeLog();
         if (self::$Host->isValid() && self::$Host->get('task')->isValid()) {
-            $this->getTasking();
-            exit;
+			# PATCH : If a task is programmed, and this task ISNT Snapin related, executes the task. 
+			if ( !self::$Host->get('task')->isSnapinTasking() ) {
+				$this->getTasking();
+				exit;
+			}
         }
         self::$HookManager->processEvent(
             'ALTERNATE_BOOT_CHECKS'
+        );
+        
+        // Try to properly autenticate / dispatch tasking ========================
+        
+        // No menu ? NO MENU/TASK/...!
+        if ($noMenu) {
+            $this->noMenu();
+        }
+        list($advLogin, $noMenu) = self::getSubObjectIDs(
+            'Service',
+            array(
+                'name' => array(
+                    'FOG_ADVANCED_MENU_LOGIN',
+                    'FOG_NO_MENU',
+                )
+            ),
+            'value',
+            false,
+            'AND',
+            'name',
+            false,
+            ''
         );
         if (isset($_REQUEST['username']) && isset($_REQUEST['password'])) {
             $tmpUser = self::attemptLogin(
@@ -469,7 +494,10 @@ class GrubBootMenu extends FOGBase
                 $_REQUEST['password']
             );
             if ($tmpUser->isValid()) {
-                if (isset($_REQUEST['delconf'])) {
+				self::$HookManager
+					->processEvent('ALTERNATE_LOGIN_BOOT_MENU_PARAMS');
+					
+				if (isset($_REQUEST['delconf'])) {
                     $this->_delHost();
                 } elseif (isset($_REQUEST['key'])) {
                     $this->keyset();
@@ -477,16 +505,28 @@ class GrubBootMenu extends FOGBase
                     $this->sesscheck();
                 } elseif (isset($_REQUEST['aprvconf'])) {
                     $this->_approveHost();
-                }
-            }
-        }
-        if (isset($_REQUEST['username'])) {
-            $this->verifyCreds();
-        } elseif (!self::$Host->isValid()) {
-            $this->printDefault();
+                } elseif (isset($_REQUEST['qihost'])) {
+					$this->setTasking($_REQUEST['imageID']);
+				} else {
+					// No task ? Just a login then !
+					echo '#!ok';
+				}
+            } else {
+				// Login invalid ? (Dosent care about a tasking) THROW ERROR AND STOP
+				echo '#!ERR_INVALID_LOGIN';
+				exit;
+			}
         } else {
-            $this->getTasking();
-        }
+			//if (!self::$Host->isValid()) { // Invalid host ? Show default menu.
+			// # 20230703 : By default, show the menu in all cases. 
+			//              Because special cases are beiging handled just up there.
+			//             GetTasking() is handled line 459
+			$this->printDefault();
+			//} else {					   // Else parse a potential tasking
+			//	$this->getTasking();
+			//}
+		}
+		// =======================================================================
     }
     /**
      * Sets the default menu item
@@ -1060,7 +1100,7 @@ class GrubBootMenu extends FOGBase
             }
         } else {
             $Send['invalidlogin'] = array(
-                "echo Invalid login!",
+                "#!ERR_INVALID_LOGIN",
             );
             $this->_parseMe($Send);
         }
@@ -1127,11 +1167,11 @@ class GrubBootMenu extends FOGBase
     public function noMenu()
     {
         $Send['nomenu'] = array(
-            'set timeout=3 ; set default=0',
+            'set timeout=3 ; set default=boothardisk',
             'menuentry "Boot from hard disk" --class drive-harddisk --id boothardisk {',
             'echo "Booting first local disk..."',
             '# Generate boot menu automatically',
-            'configfile ${bootpath}/grub/boot-local-efi.cfg',
+            'configfile ${prefix}/boot-local-efi.cfg',
             '# If not chainloaded, definitely no uEFI boot loader was found.',
             'echo "No uEFI boot loader was found!"',
 			'echo " => Restarting in 30 seconds"',
@@ -1151,7 +1191,14 @@ class GrubBootMenu extends FOGBase
     {
         $Task = self::$Host->get('task');
         if (!$Task->isValid() || $Task->isSnapinTasking()) {
-            $this->printDefault();
+			// FOG is unable to handle multiples tasks for a single computer.
+			// BUT, we can change the task in FOG/FOS by programming an other task.
+			//
+			// eg : a snapin tasking has been programmed.
+			//      FOS can replace this task with a "download image" task instead. 
+			
+            //$this->printDefault();
+            return 0;
         } else {
             if (self::$Host->get('mac')->isImageIgnored()) {
                 $this->_printImageIgnored();
@@ -1627,7 +1674,7 @@ class GrubBootMenu extends FOGBase
 			'menuentry "Boot from hard disk" --class drive-harddisk --id boothardisk {',
 			'echo "Booting first local disk..."',
 			'# Generate boot menu automatically',
-			'configfile ${bootpath}/grub/boot-local-efi.cfg',
+			'configfile ${prefix}/boot-local-efi.cfg',
 			'# If not chainloaded, definitely no uEFI boot loader was found.',
 			'echo "No uEFI boot loader was found!"',
 			'echo " => Restarting in 30 seconds"',

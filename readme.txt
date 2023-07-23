@@ -1,11 +1,11 @@
 Sorry, this document is only available in French (yet) ! 
 
 ============================================================================
-               F O G    P R O J E C T    v 1 . 5 . 10 . X
+               F O G    P R O J E C T    v 1 . 5 . 9 . X
                       Unofficial Secure Boot Patch
   Alexandre BOTZUNG [alexandre.botzung@grandest.fr] && The FOG Project Team
 https://github.com/abotzung/foguefi / https://github.com/FOGProject/fogproject
-                   VERSION : 20230430 (Licence : GPL-3)
+                   VERSION : 20230307 (Licence : GPL-3)
 ============================================================================
 
 Ces notes résument la liste des fonctionnalités ajoutés dans FOG Project.
@@ -19,7 +19,7 @@ L'installation du patch est simple à réaliser :
 (les commandes doivent être exécutés en tant que root)
 sudo -i
 cd /opt
-git clone https://github.com/abotzung/foguefi.git
+git clone https://github/abotzung/foguefi.git
 cd foguefi
 ./install.sh
 
