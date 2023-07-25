@@ -330,7 +330,7 @@ function init_apt_repo {
 	#echo 'deb [trusted=yes] http://cz.archive.ubuntu.com/ubuntu lunar main universe' >> "$aptsrc"
 	apt_global_parameter='-o Dir::Etc::sourcelist='${aptsrc}' -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"'
 	# Update listing (IMPORTANT!)
-	apt update $apt_global_parameter &> /dev/null
+	apt update $apt_global_parameter >> "$do_logfile" 2>&1
 }
 
 function download_a_package {

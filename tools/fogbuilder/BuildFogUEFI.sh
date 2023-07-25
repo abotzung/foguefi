@@ -259,7 +259,9 @@ msg_finished "Done"
 # ===== HERE, copy packages into rootfs...=================================================================
 
 dots "Copying dialog"
-cp -rvf "$(get_basedir_temp)/dialog/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+#cp -rvf "$(get_basedir_temp)/dialog/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+# !!! See line 320
+rsync -avxHAX --progress "$(get_basedir_temp)/dialog/out/" "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
 	throw_error 25 "Unable to copy dialog into dialog folder." "${FUNCNAME} - (${LINENO})"
@@ -269,7 +271,9 @@ rm "$(get_basedir_rootfs)/bin/run-parts" || throw_error 24 "Unable to cleanup /b
 msg_finished "Done"
 
 dots "Copying memtester"
-cp -rvf "$(get_basedir_temp)/memtester/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+#cp -rvf "$(get_basedir_temp)/memtester/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+# !!! See line 320
+rsync -avxHAX --progress "$(get_basedir_temp)/memtester/out/" "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
 	throw_error 26 "Unable to copy memtester into rootfs folder." "${FUNCNAME} - (${LINENO})"
@@ -277,14 +281,18 @@ fi
 msg_finished "Done"
 
 dots "Copying dtach"
-cp -rvf "$(get_basedir_temp)/dtach/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+#cp -rvf "$(get_basedir_temp)/dtach/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+# !!! See line 320
+rsync -avxHAX --progress "$(get_basedir_temp)/dtach/out/" "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
 	throw_error 27 "Unable to copy dtach into rootfs folder." "${FUNCNAME} - (${LINENO})"
 fi
 msg_finished "Done"
 dots "Copying socat"
-cp -rvf "$(get_basedir_temp)/socat/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+#cp -rvf "$(get_basedir_temp)/socat/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+# !!! See line 320
+rsync -avxHAX --progress "$(get_basedir_temp)/socat/out/" "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
 	throw_error 28 "Unable to copy socat into rootfs folder." "${FUNCNAME} - (${LINENO})"
@@ -292,7 +300,9 @@ fi
 msg_finished "Done"
 
 dots "Copying wimtools"
-cp -rvf "$(get_basedir_temp)/wimtools/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+#cp -rvf "$(get_basedir_temp)/wimtools/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+# !!! See line 320
+rsync -avxHAX --progress "$(get_basedir_temp)/wimtools/out/" "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
 	throw_error 28 "Unable to copy wimtools into rootfs folder." "${FUNCNAME} - (${LINENO})"
@@ -312,7 +322,11 @@ rm -rfv "$(get_basedir_rootfs)"/var/cache  >> "$do_logfile" 2>&1
 msg_finished "Done"
 
 dots "Copying 'FOS' rootfs to ./rootfs"
-cp -rvf "$(get_basedir_temp)"/init_fog/* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+# !!! DANGER !!! For an unknown reason, cp generates a segfault on Debian 12 (and the entire FS become inaccessible) : 
+#[24347.189617] cp[80179]: segfault at 1d3560 ip 00007efeafa8b2f2 sp 00007fff419a9588 error 4 in libc.so.6[7efeafa7c000+155000] likely on CPU {0..NbrCPU} (core X, socket 0)
+#[24347.189634] Code: 48 03 04 25 00 00 00 00 c3 66 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 40 00 48 8b 05 59 cc 19 00 48 8b 0d da ca 19 00 64 48 8b 00 <48> 8b 00 48 8b 70 38 48 8d 96 00 01 00 00 64 48 89 11 48 8b 78 40
+#cp -rvf "$(get_basedir_temp)"/init_fog/* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1 
+rsync -avxHAX --progress "$(get_basedir_temp)/init_fog/" "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
 	throw_error 16 "Unable to copy FOS rootfs to $(get_basedir_rootfs)" "${FUNCNAME} - (${LINENO})"
@@ -338,7 +352,9 @@ msg_finished "Done"
 dots "Copying Linux modules to the new rootfs"
 #cp -rv "$(get_basedir_temp)"/squash/usr/lib/modules "$basedir_rootfs/lib/modules" > /dev/null 2>&1
 RootofModules=$(echo "${PATH_LinuxModules}" | xargs dirname)
-cp -rv "$RootofModules" "$(get_basedir_rootfs)"/lib/modules >> "$do_logfile" 2>&1
+#cp -rv "$RootofModules" "$(get_basedir_rootfs)"/lib/modules >> "$do_logfile" 2>&1
+# !!! See line 320
+rsync -avxHAX --progress "${RootofModules}/" "$(get_basedir_rootfs)"/lib/modules >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
 	throw_error 19 "Unable to transfer new modules to rootfs." "${FUNCNAME} - (${LINENO})"
@@ -380,9 +396,10 @@ rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/usb/ethernet/serial -rfv
 rm "$(get_basedir_rootfs)"/lib/modules/*/kernel/drivers/usb/ethernet/misc -rfv >> "$do_logfile" 2>&1
 msg_finished "Done"
 
-
 dots "Copying folder project into the new rootfs"
-cp -rfv "$(get_basedir_project)"/* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+#cp -rfv "$(get_basedir_project)"/* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+# !!! See line 320
+rsync -avxHAX --progress "$(get_basedir_project)/" "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
 if [ $? -ne 0 ]
 then
 	throw_error 21 "Unable to copying folder project into the new rootfs." "${FUNCNAME} - (${LINENO})"
