@@ -127,7 +127,12 @@ class GrubBootMenu extends FOGBase
     public function __construct()
     {
         parent::__construct();
-        $grubChain = 'chain -ar ${boot-url}/service/ipxe/grub.exe '
+		
+		// Alex 20230821 : TODO : Add mutiarch support.
+		// Should be feseable ; Ubuntu (shim and grub signed) is supported on : amd64 + arm64 (only!)
+		//  A more "traditionnal" GRUB can be achieved via iPXE (TODO : supports others "esoteric" achitectures ?)
+	
+        /*$grubChain = 'chain -ar ${boot-url}/service/ipxe/grub.exe '
             . '--config-file="%s"';
         $sanboot = 'sanboot --no-describe --drive 0x80';
         $refind = sprintf(
@@ -135,8 +140,9 @@ class GrubBootMenu extends FOGBase
             . 'chain -ar ${boot-url}/service/ipxe/refind_x64.efi',
             "\n"
         );
+		*/
 
-        if (stripos($_REQUEST['arch'], 'i386') !== false) {
+        /*if (stripos($_REQUEST['arch'], 'i386') !== false) {
             //user i386 boot loaders instead
             $refind = sprintf(
                 'imgfetch ${boot-url}/service/ipxe/refind.conf%s'
@@ -149,8 +155,10 @@ class GrubBootMenu extends FOGBase
             //use arm boot loaders instead
             $refind = 'chain -ar ${boot-url}/service/ipxe/refind_aa64.efi';
         }
-
-        $grub = array(
+		*/
+		
+		
+        /*$grub = array(
             'basic' => sprintf(
                 $grubChain,
                 'rootnoverify (hd0);chainloader +1'
@@ -163,8 +171,9 @@ class GrubBootMenu extends FOGBase
                 $grubChain,
                 'find --set-root /BOOTMGR;chainloader /BOOTMGR"'
             )
-        );
-        self::$_exitTypes = array(
+        );*/
+		
+        /*self::$_exitTypes = array(
             'sanboot' => $sanboot,
             'grub' => $grub['basic'],
             'grub_first_hdd' => $grub['basic'],
@@ -172,7 +181,7 @@ class GrubBootMenu extends FOGBase
             'grub_first_found_windows' => $grub['1fw'],
             'refind_efi' => $refind,
             'exit' => 'exit',
-        );
+        );*/
         list(
             $webserver,
             $curroot
@@ -204,8 +213,8 @@ class GrubBootMenu extends FOGBase
             . self::$httpproto
             . ',$fog_ip)/$fog_webroot"',
 			'set bootpath=$boot_url/service/grub/tftp/',
-        );*/
-        $this->_parseMe($Send);
+        );
+        $this->_parseMe($Send);*/
         if (self::$Host->isValid()) {
             if (!self::$Host->get('inventory')->get('sysuuid')) {
                 self::$Host
@@ -215,12 +224,12 @@ class GrubBootMenu extends FOGBase
                     ->save();
             }
         }
-        $host_field_test = 'biosexit';
+        /*$host_field_test = 'biosexit';
         $global_field_test = 'FOG_BOOT_EXIT_TYPE';
         if ($_REQUEST['platform'] == 'efi') {
             $host_field_test = 'efiexit';
             $global_field_test = 'FOG_EFI_BOOT_EXIT_TYPE';
-        }
+        }*/
         $StorageNodeID = @min(
             self::getSubObjectIDs(
                 'StorageNode',
@@ -289,7 +298,7 @@ class GrubBootMenu extends FOGBase
             $keySequence :
             ''
         );
-        if ($_REQUEST['arch'] != 'x86_64') {
+        if (isset($_REQUEST['arch']) && $_REQUEST['arch'] != 'x86_64') {
             $bzImage = $bzImage32;
             $imagefile = $init_32;
         }
@@ -315,19 +324,24 @@ class GrubBootMenu extends FOGBase
 		
 		
         $StorageGroup = $StorageNode->getStorageGroup();
-        $exit = trim(
+        /*$exit = trim(
             (
                 self::$Host->get($host_field_test) ?:
                 self::getSetting($global_field_test)
             )
         );
+		
+		
         if (!$exit || !in_array($exit, array_keys(self::$_exitTypes))) {
             $exit = 'sanboot';
-        }
+        }*/
         $initrd = $imagefile;
+		
+		// ===== Give the opportunity to a hook for managing the kernel startup parameters (only if the host is valid)
+		// Alex 20230821 : TODO : Add FOGUEFI_ in the name of all hook event name to dodge collisions with existings plugins.
         if (self::$Host->isValid()) {
             self::$HookManager->processEvent(
-                'BOOT_ITEM_NEW_SETTINGS',
+                'FOGUEFI_BOOT_ITEM_NEW_SETTINGS',
                 array(
                     'Host' => &self::$Host,
                     'StorageGroup' => &$StorageGroup,
@@ -351,14 +365,14 @@ class GrubBootMenu extends FOGBase
         $initrd = $imagefile;
         $this->_timeout = $timeout;
         $this->_hiddenmenu = ($hiddenmenu && !$_REQUEST['menuAccess']);
-        $this->_bootexittype = self::$_exitTypes[$exit];
+        $this->_bootexittype = 'none'; /* INUSED bootexittype */ //self::$_exitTypes[$exit];
         $this->_loglevel = "loglevel=$loglevel";
-        $this->_KS = self::getClass('KeySequence', $keySequence);
+        $this->_KS = self::getClass('KeySequence', $keySequence) || 'us';
         $this->_booturl = self::$httpproto
             . "://{$webserver}/fog/service";
 		// v v v inutilisée v v v 
-        $this->_memdisk = "kernel $memdisk initrd=$memtest";
-        $this->_memtest = "initrd $memtest";
+        //$this->_memdisk = "kernel $memdisk initrd=$memtest";
+        //$this->_memtest = "initrd $memtest";
 		
 		
         $StorageNodes = (array)self::getClass('StorageNodeManager')
@@ -413,6 +427,9 @@ class GrubBootMenu extends FOGBase
 			$TASK_Icon=$TaskType->get('icon');
         }
 
+		// Alex 20230821 ; TODO : Run some sanity checks to GRUB security (prevent anyone to editiong GRUB commandline)
+		// Some ressources : https://help.ubuntu.com/community/Grub2/Passwords / https://superuser.com/questions/1405178/disable-grub-boot-menu-parameters-editing-while-booting
+		// https://www.gnu.org/software/grub/manual/grub/html_node/Authentication-and-authorisation.html
         $this->_kernel = sprintf(
 			'linuxefi ${bootpath}%s %s initrd=%s root=/dev/ram0 rw '
             . 'ramdisk_size=%s%sweb=%s consoleblank=0%s rootfstype=ext4%s%s '
@@ -434,7 +451,7 @@ class GrubBootMenu extends FOGBase
         );
 			$this->_initrd = "initrdefi \${bootpath}$imagefile";
         self::$HookManager
-            ->processEvent('BOOT_MENU_ITEM');
+            ->processEvent('FOGUEFI_BOOT_MENU_ITEM');
         $PXEMenuID = @max(
             self::getSubObjectIDs(
                 'PXEMenuOptions',
@@ -464,12 +481,26 @@ class GrubBootMenu extends FOGBase
 			}
         }
         self::$HookManager->processEvent(
-            'ALTERNATE_BOOT_CHECKS'
+            'FOGUEFI_ALTERNATE_BOOT_CHECKS'
         );
         
         // Try to properly autenticate / dispatch tasking ========================
         
         // No menu ? NO MENU/TASK/...!
+        list($noMenu) = self::getSubObjectIDs(
+            'Service',
+            array(
+                'name' => array(
+                    'FOG_NO_MENU',
+                )
+            ),
+            'value',
+            false,
+            'AND',
+            'name',
+            false,
+            ''
+        );
         if ($noMenu) {
             $this->noMenu();
         }
@@ -495,7 +526,7 @@ class GrubBootMenu extends FOGBase
             );
             if ($tmpUser->isValid()) {
 				self::$HookManager
-					->processEvent('ALTERNATE_LOGIN_BOOT_MENU_PARAMS');
+					->processEvent('FOGUEFI_ALTERNATE_LOGIN_BOOT_MENU_PARAMS');
 					
 				if (isset($_REQUEST['delconf'])) {
                     $this->_delHost();
@@ -552,20 +583,20 @@ class GrubBootMenu extends FOGBase
      */
     private function _ipxeLog()
     {
-        $filename = trim(basename($_REQUEST['filename']));
-        $product = trim($_REQUEST['product']);
-        $manufacturer = trim($_REQUEST['manufacturer']);
+		// Alex 20230821 : Update _ipxeLog
+		// ***TODO*** : Switch logs to a proper item.
         $findWhere = array(
-            'file' => sprintf('%s', $filename ? $filename : ''),
-            'product' => sprintf('%s', $product ? $product : ''),
-            'manufacturer' => sprintf('%s', $manufacturer ? $manufacturer : ''),
+            'file' => sprintf('%s', isset($_REQUEST['filename']) ? trim(basename($_REQUEST['filename'])) : ''),
+            'product' => sprintf('%s', isset($_REQUEST['product']) ? trim($_REQUEST['product']) : ''),
+            'manufacturer' => sprintf('%s', isset($_REQUEST['manufacturer']) ? trim($_REQUEST['manufacturer']) : ''),
             'mac' => (
                 self::$Host->isValid() ?
                 self::$Host->get('mac')->__toString() :
                 ''
             ),
         );
-        $id = @max(self::getSubObjectIDs('iPXE', $findWhere));
+        $id = self::getSubObjectIDs('iPXE', $findWhere);
+        $id = (isset($id) && is_array($id) && count($id) > 0) ? max($id) : 0;
         self::getClass('iPXE', $id)
             ->set('product', $findWhere['product'])
             ->set('manufacturer', $findWhere['manufacturer'])
@@ -573,7 +604,7 @@ class GrubBootMenu extends FOGBase
             ->set('success', 1)
             ->set('failure', 0)
             ->set('file', $findWhere['file'])
-            ->set('version', trim($_REQUEST['ipxever']))
+            ->set('version', isset($_REQUEST['ipxever']) ? trim($_REQUEST['ipxever']) : '')
             ->save();
     }
     /**
@@ -1028,8 +1059,13 @@ class GrubBootMenu extends FOGBase
      */
     private function _parseMe($Send)
     {
+		/* Alex 20230821 : ***TODO***
+		  GRUB "FOGUefi" *MUST* be separated from iPXE.
+		  Also, some cleanup is required /!\
+		*/
         self::$HookManager->processEvent(
-            'IPXE_EDIT',
+            //'IPXE_EDIT',
+			'FOGUEFI_EDIT',
             array(
                 'ipxe' => &$Send,
                 'Host' => &self::$Host,
@@ -1045,18 +1081,21 @@ class GrubBootMenu extends FOGBase
                 'shutdown' => &$this->_shutdown,
                 'path' => &$this->_path,
                 'timeout' => &$this->_timeout,
-                'KS' => $this->ks
+                //'KS' => $this->ks // Key sequancing used by iPXE for accessing the menu, not used by GRUB
             )
         );
-        if (count($Send) > 0) {
-            array_walk_recursive(
-                $Send,
-                function (&$val, &$key) {
-                    printf('%s%s', implode("\n", (array)$val), "\n");
-                    unset($val, $key);
-                }
-            );
-        }
+		// FIXED : Sometimes, $Send is not countable and crashes PHP8 (is_countable added)
+		if (is_countable($Send) && count($Send) > 0) {
+			array_walk_recursive(
+				$Send,
+				// FIXED : Argument #2 ($key) must be passed by reference (& removed from '$key' ; why ? )
+				function (&$val, $key) {
+					printf('%s%s', implode("\n", (array)$val), "\n");
+					unset($val, $key);
+				
+				}
+			);
+		}
     }
     /**
      * Verifies credentials for us
@@ -1089,7 +1128,7 @@ class GrubBootMenu extends FOGBase
         );
         if ($tmpUser->isValid()) {
             self::$HookManager
-                ->processEvent('ALTERNATE_LOGIN_BOOT_MENU_PARAMS');
+                ->processEvent('FOGUEFI_ALTERNATE_LOGIN_BOOT_MENU_PARAMS');
             if ($_REQUEST['qihost']) {				/* Program image download (need mac, sysuuid, imageID)*/
                 $this->setTasking($_REQUEST['imageID']);
             } else {
@@ -1230,7 +1269,7 @@ class GrubBootMenu extends FOGBase
                 $StorageGroup = null;
                 $StorageNode = null;
                 self::$HookManager->processEvent(
-                    'BOOT_TASK_NEW_SETTINGS',
+                    'FOGUEFI_BOOT_TASK_NEW_SETTINGS',
                     array(
                         'Host' => &self::$Host,
                         'StorageNode' => &$StorageNode,
@@ -1262,7 +1301,7 @@ class GrubBootMenu extends FOGBase
                 }
                 $Task->save();
                 self::$HookManager->processEvent(
-                    'BOOT_TASK_NEW_SETTINGS',
+                    'FOGUEFI_BOOT_TASK_NEW_SETTINGS',
                     array(
                         'Host' => &self::$Host,
                         'StorageNode' => &$StorageNode,

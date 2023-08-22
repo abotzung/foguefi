@@ -26,7 +26,7 @@
 require '../../commons/base.inc.php';
 header("Content-type: text/html"); // DANGER : !!!NE PAS CHANGER L'HEADER!!! ; SINON GRUB REFUSE DE "normal" LA PAGE !!
 
-if($_REQUEST['testconn']){ // Un code bidon pour "tester la connexion..."
+if(isset($_REQUEST['testconn'])){ // Un code bidon pour "tester la connexion..."
 	// GRUB Ubuntu2.06 BUG + Proxmox 7.2 UEFI ; Aléatoirement, GRUB n'arrive pas à télécharger la page HTTP.
 	// NOTE : Si (http,... n'est pas disponible, GRUB rebascule sur TFTP, en mode dégradée
 	echo "set httpproto=\"".FOGCore::$httpproto."\"\n";
