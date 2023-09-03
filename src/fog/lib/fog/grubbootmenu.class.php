@@ -449,7 +449,7 @@ class GrubBootMenu extends FOGBase
             ),
             $this->_storage
         );
-			$this->_initrd = "initrdefi \${bootpath}$imagefile";
+			$this->_initrd = "initrdefi \"\${bootpath}$imagefile\"";
         self::$HookManager
             ->processEvent('FOGUEFI_BOOT_MENU_ITEM');
         $PXEMenuID = @max(
