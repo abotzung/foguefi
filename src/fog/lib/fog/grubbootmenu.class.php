@@ -431,7 +431,7 @@ class GrubBootMenu extends FOGBase
 		// Some ressources : https://help.ubuntu.com/community/Grub2/Passwords / https://superuser.com/questions/1405178/disable-grub-boot-menu-parameters-editing-while-booting
 		// https://www.gnu.org/software/grub/manual/grub/html_node/Authentication-and-authorisation.html
         $this->_kernel = sprintf(
-			'linuxefi ${bootpath}%s %s initrd=%s root=/dev/ram0 rw '
+			'linuxefi "${bootpath}%s" %s initrd=%s root=/dev/ram0 rw '
             . 'ramdisk_size=%s%sweb=%s consoleblank=0%s rootfstype=ext4%s%s '
             . '%s nvme_core.default_ps_max_latency_us=0 $grub_parameter $gfxgui', 
             $bzImage,
