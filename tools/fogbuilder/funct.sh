@@ -1,7 +1,4 @@
 #!/bin/bash
-
-# Yo, penses a regarder du cote de /var/lib/dpkg/status pour ton probleme ;)
-
 #============================================================================
 #              F O G    P R O J E C T    v 1 . 5 . 10 . x
 #                    Unofficial Secure Boot Patch
@@ -9,7 +6,7 @@
 #
 # Auteur       : Alexandre BOTZUNG [alexandre.botzung@grandest.fr]
 # Auteur       : The FOG Project team (https://github.com/FOGProject/fogproject)
-# Version      : 20230724
+# Version      : 20231011
 # Licence      : http://opensource.org/licenses/gpl-3.0
 #============================================================================ 
 # Utilities/function for BuildFogUEFI.sh
