@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# Yo, penses a regarder du cote de /var/lib/dpkg/status pour ton probleme ;)
+
 #============================================================================
 #              F O G    P R O J E C T    v 1 . 5 . 10 . x
 #                    Unofficial Secure Boot Patch
@@ -52,9 +55,9 @@ function throw_error {
 function printclr {
 	# $1 - Color code
 	# $2 - Message
-    tput setaf $1
+    #tput setaf $1
     echo -ne "$2"
-    tput sgr0
+    #tput sgr0
 }
 
 # reset the timer
@@ -96,11 +99,9 @@ function check_if_successful {
 
     if [[ $1 -eq 0 ]]; then
         # Command success
-        tput cuu1
         echo "$2 $(printclr ${green} "[OK]")"
     else
         # Command failed
-        tput cuu1
         echo "$2 $(printclr ${red} "[x]")"
     fi
 }
@@ -117,7 +118,7 @@ function download_packages {
     do
         name="$line"
         
-        echo "[-] Downloading: $(printclr ${cyan} "$name")"
+        echo " -> Downloading: $name"
         # *** ICI débute le traitement de la conservation des paquets ***
         
 		internal_keep_package="0"
@@ -135,21 +136,19 @@ function download_packages {
 			internal_keep_package="1"
 		fi
 		if [ "$internal_keep_package" != "0" ]; then
-			apt-get download "$name" ${apt_global_parameter} &> /dev/null
+			apt-get download "$name" ${apt_global_parameter} &>> "$do_logfile"
 
 			if [[ $? -eq 0 ]]; then
 				# Download success
-				tput cuu1
-				echo "$(tput setaf 7)[-] Downloading: $(printclr ${cyan} "$name") $(printclr ${green} "[OK]")"
+				echo "-> Downloading: "$name" [OK]"
 			else
 				# Download failed
-				tput cuu1
-				echo "$(tput setaf 7)[-] Downloading: $(printclr ${cyan} "$name") $(printclr ${red} "[x]")"
+				echo "-> Downloading: "$name" [FAILED]"
+				throw_error 1 " Downloading file $name failed." "${FUNCNAME} - (${LINENO})"
 			fi
 		else
 			# Download failed
-			tput cuu1
-			echo "$(tput setaf 7)[-] Downloading: $(printclr ${cyan} "$name") $(printclr ${yellow} "[SKIP]")"
+			echo "-> Downloading: "$name" [SKIPPED]"
 		fi
 
     done < "$1"
@@ -178,13 +177,12 @@ function convert_deb {
 				ar -m -c -a sdsd "$f" debian-binary control.tar.xz data.tar.xz
 				# Clean up
 				rm debian-binary control.tar.xz data.tar.xz control.tar.zst data.tar.zst
-				tput cuu1
-				echo "$(tput setaf 7)[-] Conversion successful: $(printclr ${cyan} "$f") $(printclr ${green} "[OK]")"
+				echo "-> Conversion successful: $f [OK]"
 			else
-				echo "$(tput setaf 7)[-] Already in xz format: $(printclr ${cyan} "$f") $(printclr ${yellow} "[SKIP]")"
+				echo "-> Already in xz format: $f [SKIP]"
 			fi
 		else
-            echo "$(tput setaf 7)[-] Error when accessing file : $(printclr ${cyan} "$f") $(printclr ${red} "[Conversion failed]")"
+            echo "-> Error when accessing file : $f [Conversion FAILED]"
         fi
 	done
 	# unset it now
@@ -223,7 +221,7 @@ function get_dependencies {
 function get_global {
     # $1 package name
 
-    echo "$(tput setaf 7)[-] Found $gcount dependencies for:$(tput setaf 6) $1 $(tput setaf 7)"
+    echo "-> Found $gcount dependencies for: $1 "
     # Store all dependencies to file.
     apt-cache depends $1 ${apt_global_parameter}| grep -v "<" | grep -w "Depends:" > "$1_$filename"
     # Clean file from unnecessary characters.
@@ -310,27 +308,39 @@ function get_basedir_release {
 
 # Init apt repositories (from Ubuntu)
 function init_apt_repo {
-	
 	# pkgdl_keeppkg       -> Search $needle in package dependancies. If $needle found, keep the package, else ignored. If $needle if empty, keep all packages.
 	#                          needle separated with semicolon. Eg: "linux-image;linux-modules;signed"
 	# export pkgdl_keeppkg="linux-image;linux-modules;signed"
 	[ -z "$pkgdl_keeppkg" ] && pkgdl_keeppkg="linux-image;linux-modules;signed"
-	
+
 	urlRepo="$1"
 	distroName="$2"
 	depotName="$3"
 	#http://cz.archive.ubuntu.com/ubuntu lunar main universe
-	
-	
+
+
 	aptsrc=$(mktemp)
 	chmod 0777 "$aptsrc"
 	# trusted=yes because the system dont have GPG keys to authenticate the repository
 	echo "deb [trusted=yes] ${urlRepo} ${distroName} ${depotName}" > "$aptsrc"
+	do_log " Init file $aptsrc with content : deb [trusted=yes] ${urlRepo} ${distroName} ${depotName}"
 	# 'dialog' package is in the universe repository
 	#echo 'deb [trusted=yes] http://cz.archive.ubuntu.com/ubuntu lunar main universe' >> "$aptsrc"
-	apt_global_parameter='-o Dir::Etc::sourcelist='${aptsrc}' -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"'
+	#apt_global_parameter='-o Dir::Etc::sourcelist='${aptsrc}' -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0"'
+
+	apttempdir="$(get_basedir_temp)/apttempdir"
+	mkdir "$apttempdir"
+	[[ $? -ne 0 ]] && throw_error 77 "Unable to create temp folder $apttempdir" "${FUNCNAME} - (${LINENO})"
+
+	apt_global_parameter='-o Debug::NoLocking=1 -o Dir::Etc::sourcelist='${aptsrc}' -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="1" -o Dir::State::status='${apttempdir}'/apt_status -o Dir::State='${apttempdir}' -o Dir::Cache='${apttempdir}
+
+	do_log ' Trying apt-get update with global parameters : '${apt_global_parameter}
 	# Update listing (IMPORTANT!)
 	apt update $apt_global_parameter >> "$do_logfile" 2>&1
+	errcode=$?
+
+	do_log " Return code of APT UPDATE : $errcode"
+	[[ $errcode -ne 0 ]] && throw_error 78 " apt-get update failed with error code $errcode"
 }
 
 function download_a_package {
@@ -396,7 +406,7 @@ function download_a_package {
         name="$line"
         # check if is package name
         if [[ $( echo ${name} | grep -v "<" | grep -icw "Depends:") -lt 1 ]]; then
-            #echo "[$] Round $round:$(tput setaf 6) $name $(tput setaf 7)"
+            #echo "[$] Round $round: $name"
             pre=$(cat ${masterlist} | grep -ic "$name")
 
             #echo "Pret: $pre"
@@ -468,10 +478,9 @@ function unpack_debs {
 		if [ -f "$f" ]; then
 			echo "[-] Unpacking $f ..."
 			dpkg-deb -x "$f" ./out
-			tput cuu1
-			echo "$(tput setaf 7)[-] Unpacking successful: $(printclr ${cyan} "$f") $(printclr ${green} "[OK]")"
+			echo "-> Unpacking successful: $f [OK]"
 		else
-            echo "$(tput setaf 7)[-] Error when accessing file : $(printclr ${cyan} "$f") $(printclr ${red} "[Unpacking failed]")"
+            echo "-> Error when accessing file : $f [Unpacking FAILED]"
         fi
 	done
 	# unset it now
@@ -596,10 +605,9 @@ function unpack_debs {
 		if [ -f "$f" ]; then
 			echo "[-] Unpacking $f ..."
 			dpkg-deb -x "$f" ./out
-			tput cuu1
-			echo "$(tput setaf 7)[-] Unpacking successful: $(printclr ${cyan} "$f") $(printclr ${green} "[OK]")"
+			echo "-> Unpacking successful: $f [OK]"
 		else
-            echo "$(tput setaf 7)[-] Error when accessing file : $(printclr ${cyan} "$f") $(printclr ${red} "[Unpacking failed]")"
+            echo "-> Error when accessing file : $f [Unpacking failed]"
         fi
 	done
 	# unset it now
