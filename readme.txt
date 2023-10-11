@@ -1,7 +1,7 @@
 Sorry, this document is only available in French (yet) ! 
 
 ============================================================================
-               F O G    P R O J E C T    v 1 . 5 . 9 . X
+               F O G    P R O J E C T    v 1 . 5 . 10 . X
                       Unofficial Secure Boot Patch
   Alexandre BOTZUNG [alexandre.botzung@grandest.fr] && The FOG Project Team
 https://github.com/abotzung/foguefi / https://github.com/FOGProject/fogproject
