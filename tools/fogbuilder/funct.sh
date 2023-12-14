@@ -1039,6 +1039,9 @@ function simulateLdconfig {
 
 
 function buildUSBBoot {
+	# TODO : rewrite buildUSBBoot (partition needs to be ESP type, not FAT ! Also some bioses dosent see the USB key at start 2023/12/14)
+	echo "function buildUSBBoot is in ALPHA and dosent work (yet!)"
+
 	# Oh ! Dirty !  ;
 	source /opt/fog/.fogsettings
 	if [[ -z "${docroot}${webroot}" ]]; then

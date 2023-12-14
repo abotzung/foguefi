@@ -122,6 +122,11 @@ dots "Downloading (+converting) wimtools"
 download_a_package "wimtools" >> "$do_logfile"
 msg_finished "Downloaded"
 
+# Needed for the VNC server
+dots "Downloading (+converting) libvncserver1"
+download_a_package "libvncserver1" >> "$do_logfile"
+msg_finished "Downloaded"
+
 dots "Unpacking dialog (DEB)"
 unpack_debs "dialog" >> "$do_logfile"
 msg_finished "Done"
@@ -141,6 +146,12 @@ msg_finished "Done"
 dots "Unpacking wimtools (DEB)"
 unpack_debs "wimtools" >> "$do_logfile"
 msg_finished "Done"
+
+# Needed for the VNC server
+dots "Unpacking libvncserver1 (DEB)"
+unpack_debs "libvncserver1" >> "$do_logfile"
+msg_finished "Done"
+
 #-------------------------------------
 
 
