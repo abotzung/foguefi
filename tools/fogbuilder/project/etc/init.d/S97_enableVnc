@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # @category FOGStubmenu
 # @package  FOGUefi
 # @author   Alexandre Botzung <alexandre.botzung@grandest.fr>
