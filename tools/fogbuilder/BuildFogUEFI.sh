@@ -319,6 +319,16 @@ then
 	throw_error 28 "Unable to copy wimtools into rootfs folder." "${FUNCNAME} - (${LINENO})"
 fi
 msg_finished "Done"
+
+dots "Copying libvncserver1"
+#cp -rvf "$(get_basedir_temp)/libvncserver1/out/"* "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+# !!! See line 320
+rsync -avxHAX --progress "$(get_basedir_temp)/libvncserver1/out/" "$(get_basedir_rootfs)" >> "$do_logfile" 2>&1
+if [ $? -ne 0 ]
+then
+	throw_error 29 "Unable to copy libvncserver1 into rootfs folder." "${FUNCNAME} - (${LINENO})"
+fi
+msg_finished "Done"
 # ==================================================================================================================================
 
 # PATCH : Some packages can be refering to /lib64. But /lib64 dosen't exist into the FOS Filesystem.
