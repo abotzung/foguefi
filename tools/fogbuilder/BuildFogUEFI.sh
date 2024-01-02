@@ -23,6 +23,12 @@ if [ ! -f "/opt/fog/.fogsettings" ]; then
 	throw_error 1 "FOG installation not found on this host." "(main) - (${LINENO})"
 fi
 
+if [ ! -f "./modules_needed_for_fos.txt" ]; then
+	# List of modules needed for FOS not found ? ABORT !
+	# TODO : Nettoyer et refactoriser le code.
+	throw_error 1 "File modules_needed_for_fos.txt not found." "(main) - (${LINENO})"
+fi
+
 source "/opt/fog/.fogsettings"
 
 # ---- [URL] : Where to download FOS Filesystem ----------------
@@ -370,6 +376,67 @@ then
 fi
 msg_finished "Done"
 
+dots "Cleaning modules with FOS specification"
+# DANGER DANGER DANGER HACK HACK HACK !!! ===================================================
+# modules_needed_for_fos.txt
+# TODO : Nettoyer et refactoriser le code.
+# C'est une partie horrible, mais "tant que cela fonctionnes" :)
+#WorkDirOfModules="${RootofModules}$(ls --color=never "${RootofModules}")/"
+# -> /opt/foguefi/tools/fogbuilder/temp/linux-image-generic/out/lib/modules/6.2.0-20-generic
+RootofModules=$(echo "${PATH_LinuxModules}" | xargs dirname)
+srcKOfile=$(mktemp)
+find "${RootofModules}"/ -name "*.ko" > "${srcKOfile}"
+#/opt/foguefi/tools/fogbuilder/temp/linux-image-generic/out/lib/modules/6.2.0-20-generic/kernel/zfs/zcommon.ko
+#/opt/foguefi/tools/fogbuilder/temp/linux-image-generic/out/lib/modules/6.2.0-20-generic/kernel/zfs/zzstd.ko
+#/opt/foguefi/tools/fogbuilder/temp/linux-image-generic/out/lib/modules/6.2.0-20-generic/kernel/zfs/icp.ko
+#/opt/foguefi/tools/fogbuilder/temp/linux-image-generic/out/lib/modules/6.2.0-20-generic/kernel/zfs/zfs.ko
+#...
+moduleSRC_intfile="$srcKOfile"
+moduleDST_intfile="./modules_needed_for_fos.txt"
+while IFS= read -r moduleSRC 
+do
+	FLAG_found=0
+	
+	while IFS= read -r moduleFOS
+	do
+		# Retire le point en début de chaine
+		if [[ "${moduleFOS}" == .* ]]; then
+			moduleFOS="${moduleFOS:1}"
+		fi
+		
+		# Si le texte moduleFOS est trouvée dans moduleSRC...
+		if [[ "${moduleSRC}" == *"${moduleFOS}" ]];
+		then
+			FLAG_found=1
+			break
+		fi
+	done < "$moduleDST_intfile"
+
+	if [[ "$FLAG_found" == 1 ]]; then
+		#echo "Fichier trouvé : ${moduleSRC}"
+		do_log "(i) Keeping file : ${moduleSRC}"
+	else
+		#echo "A supprimer : ${moduleSRC}"
+		do_log "(i) Deleting file : ${moduleSRC}"
+		rm "${moduleSRC}"
+	fi
+
+
+	#echo "$moduleSRC"
+done < "$moduleSRC_intfile"
+
+
+
+
+
+
+
+
+
+
+# END OF DANGER DANGER DANGER HACK HACK HACK ====================================================
+
+
 dots "Copying Linux modules to the new rootfs"
 #cp -rv "$(get_basedir_temp)"/squash/usr/lib/modules "$basedir_rootfs/lib/modules" > /dev/null 2>&1
 RootofModules=$(echo "${PATH_LinuxModules}" | xargs dirname)
@@ -389,7 +456,6 @@ then
 	throw_error 20 "Unable to transfer new modules to rootfs." "${FUNCNAME} - (${LINENO})"
 fi
 msg_finished "Done"
-
 
 dots "Cleaning inused modules"
 # Raison : Bruits dans les logs
