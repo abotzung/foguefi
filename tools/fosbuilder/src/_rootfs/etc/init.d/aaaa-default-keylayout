@@ -1,0 +1,15 @@
+#!/sbin/openrc-run
+
+# Start FOG ; Alex BOTZUNG
+
+description="Set the correct keyboard layout"
+
+depend() {
+	keyword -prefix -lxc -docker
+}
+
+start() {
+	ebegin "Setting keyboard layout"
+	bash /bin/FOS-changekbd
+	eend $?
+}

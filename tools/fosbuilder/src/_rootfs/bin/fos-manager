@@ -1,0 +1,23 @@
+#!/bin/bash
+
+trap '' 2 2>&1
+mkdir /run/dtach >/dev/null 2>&1
+
+if [[ "$1" != "--run-as-service" ]]; then echo "fos-manager must be launched in a service."; exit 1; fi
+
+
+while true
+do
+    # This is the main loop of "fos-manager"
+    # Here, we catch potential errors
+    # Actually, FOGUefi never quit ; error catching must be done in funcs.sh / FOGUefi
+    trap '' 2 2>&1
+    stty -ixon 2>&1
+
+    dtach -c /run/dtach/console -Ez -r winch /bin/FOGUefi
+
+    clear
+    echo "FOGUefi has crashed, respawn in 1..."
+    sleep 1
+done
+

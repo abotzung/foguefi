@@ -1,12 +1,12 @@
 #!/bin/bash
 #============================================================================
-#              F O G    P R O J E C T    v 1 . 5 . 10 . x
+#              F O G    P R O J E C T    v 1 . 5 . x
 #                    Unofficial Secure Boot Patch
 #             FOGUefi (https://github.com/abotzung/foguefi)
 #
 # Auteur       : Alexandre BOTZUNG [alexandre.botzung@grandest.fr]
 # Auteur       : The FOG Project team (https://github.com/FOGProject/fogproject)
-# Version      : 20230724
+# Version      : 20240321
 # Licence      : http://opensource.org/licenses/gpl-3.0
 #============================================================================ 
 # install.sh
@@ -57,28 +57,13 @@ echo ' This patch contains files from :'
 echo ' - The FOG Project <https://fogproject.org/> (init.xz & scripts & logos)'
 echo ' - Clonezilla (C) 2003-2023, NCHC, Taiwan <https://clonezilla.org/> (scripts)'
 echo ' - Ubuntu (C) 2023 Canonical Ltd. <https://ubuntu.com/> (GNU/Linux signed kernel, shim-signed, grub-efi-arm64-signed)'
+echo ' - The Alpine Linux Development team <https://www.alpinelinux.org/> (base env)'
 echo ' - Redo Rescue (C) 2010.2020 Zebradots Software <http://redorescue.com/> (GRUB Theme, heavily modified)'
 echo ' - Mcder3 <github.com/KaOSx/midna> (icons)'
 echo ' - Gnome icon pack <https://download.gnome.org/sources/gnome-icon-theme/> (icons) (c) 2002-2008 :'
-echo '      Ulisse Perusin <uli.peru@gmail.com>'
-echo '      Riccardo Buzzotta <raozuzu@yahoo.it>'
-echo '      Josef Vybíral <cornelius@vybiral.info>'
-echo '      Hylke Bons <h.bons@student.rug.nl>'
-echo '      Ricardo González <rick@jinlabs.com>'
-echo '      Lapo Calamandrei <calamandrei@gmail.com>'
-echo '      Rodney Dawes <dobey@novell.com>'
-echo '      Luca Ferretti <elle.uca@libero.it>'
-echo '      Tuomas Kuosmanen <tigert@gimp.org>'
-echo '      Andreas Nilsson <nisses.mail@home.se>'
-echo '      Jakub Steiner <jimmac@novell.com>'
 echo '  '
-echo '  '
-echo '  '
-echo '  '
-
-
 echo ''
-echo 'The programs and files included with this patch are free software; the exact distribution terms for each program are described in the individual files.'
+echo 'This patch are free software; the exact distribution terms for each program are described in the individual files.'
 echo 'This patch comes with ABSOLUTELY NO WARRANTY, to the extent permitted by applicable law.'
 echo ''
 echo ''
@@ -104,8 +89,9 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	# ========== Rebuild and patch FOG Stub "FOS" ==========
 	# Rebuild now, because if the patching failed, the installer stop early and dosent leave nasty traces into the system
 	echo "=> The installer now gonna patch FOG Stub. This can takes up to 20 minutes. Please wait..."
-	cd $basedir/tools/fogbuilder
-	./BuildFogUEFI.sh
+	cd $basedir/tools/fosbuilder
+	#./BuildFogUEFI.sh
+	./FOS-alpine-builder.sh
 	if [ $? -ne "0" ]; then
 		echo "An ERROR has been detected and the installer cannot continue. Please share your console output logs with the devlopper, thank you !"
 		echo "Goodbye"
@@ -123,10 +109,11 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	# DEBUGME DEBUGME - Switched to no delay for dev purposes
 	#sleep 1
 
-	echo "=> Copying Xserver ressources..."
-	cp -rf "$basedir"/src/images/* /images/
-	chown -R root:root '/images/!xserver'
-	chmod -R 0755 '/images/!xserver'
+	# xserver n'est pas super pertinent pour le moment
+	#echo "=> Copying Xserver ressources..."
+	#cp -rf "$basedir"/src/images/* /images/
+	#chown -R root:root '/images/!xserver'
+	#chmod -R 0755 '/images/!xserver'
 	# DEBUGME DEBUGME - Switched to no delay for dev purposes
 	#sleep 1
 

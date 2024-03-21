@@ -1,0 +1,319 @@
+#!/bin/bash
+
+. /usr/share/fog/lib/funcs.sh
+
+getIPAddresses() {
+    read ipaddr <<< $(/sbin/ip -4 -o addr | awk -F'([ /])+' '/global/ {print $4}' | tr '[:space:]' '|' | sed -e 's/^[|]//g' -e 's/[|]$//g')
+    echo $ipaddr
+}
+
+fog_compName () {
+    ######## Donne le nom du pc à l'aide du serveur FOG ####
+    # Renvoie ***Unknown*** si l'ordinateur n'existe pas
+    MONuuid=$(dmidecode -s system-uuid)
+    MONuuid=${sysuuid,,}
+    MONmac=$(getMACAddresses)
+    DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac" "${web}service/hostname.php" -A '')
+
+    if [[ $DoCurl == *"#!ok="* ]]; then
+        IFS=$'\n'
+        for line in $DoCurl; do
+            if [[ $line == *"#!ok="* ]]; then
+                line2=$(echo "$line" | sed -r 's,\t,,g')
+                line2=${line2/=/|}
+                FOGcomputerName=$(awk -F\|  '{print $2}' <<< $line2)
+            fi
+        done
+    else
+        FOGcomputerName="***Unknown***"
+    fi
+}
+
+init_backtitle() {
+    # Initialise la backtitle par défaut  
+    if [[ -z $(cat /proc/cmdline | grep 'FOG_rebranding_banner=') ]]; then
+        # La bannière n'a PAS été forcée depuis la CMD ? On remets la 'legacy' en place !
+        FOG_rebranding_banner='Alexandre BOTZUNG (alexandre.botzung@grandest.fr)'
+    fi
+    if [[ -z $(cat /proc/cmdline | grep 'FOG_rebranding_software=') ]]; then
+        # La bannière n'a PAS été forcée depuis la CMD ? On remets la 'legacy' en place !
+        # TODO 
+        fog_compName
+        IPClient=$(getIPAddresses)
+        FOG_rebranding_software="FOGUefi system console [$IPClient] $initversion - $FOG_rebranding_banner [$FOGcomputerName]"
+    fi
+}
+
+login_fog () {
+    # La procédure renvoie 0 si la connexion est réussie, 1 sinon.
+    #
+    # $FOG_username et $FOG_password sont peuplés si le code de retour = 0, les variables sont vidés sinon.
+    # $FOG_rebranding_banner peut être utilisée pour changer bannière de connexion.
+    #
+    # Utilise le nouveau "grubbootmenu.class.php"
+    # /!\ Here be Dragons /!\
+    #
+    # Alex 03072022 : Un timeout a été ajoutée au popups de connexion, permettant une execution non bloquante en cas de remastérisation "inattendue"
+
+    if [[ "$FOG_islogged" == "1" ]]; then # Est-on déjà connecté ? Si oui, pas la peine de refaire une demande d'auth.
+        return 0
+    fi
+
+    weblogin=$FOG_username
+    webpass=$FOG_password    
+    FOG_islogged=0 # Drapeau indiquant si l'on est correctement connecté au serveur FOG
+    
+    MONuuid=$(dmidecode -s system-uuid)
+    MONuuid=${sysuuid,,}
+    MONmac=$(getMACAddresses)
+    
+    while true; do
+        if [[ -n "$weblogin" && -n "$webpass" ]]; then
+            # Si on a déjà le login et le mot de passe, j'essaye une authentification
+            # Cela permettera d'automatiser des connexions via le boot par clé usb ("FOG Self-Service")
+            DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&username=${weblogin}&password=${webpass}" "${web}service/grub/grub.php" -A '')
+
+            ### Mot de passe incorrect : 
+            if [[ $DoCurl == *"#!ok"* ]]; then
+                FOG_username=$weblogin
+                FOG_password=$webpass
+                FOG_islogged=1
+                return 0
+            fi
+            
+            # Compte incorrect, détruit les variables en mémoire
+            weblogin=''
+            webpass=''
+            FOG_username=''
+            FOG_password=''
+            FOG_islogged=0
+            
+            export DIALOGRC="/root/dialog_rouge"
+            dialog \
+                --backtitle "$FOG_rebranding_software" \
+                --title "ERROR" \
+                --timeout $FOG_DialogTimeout \
+                --ok-label "OK" \
+                --msgbox "The username or password is incorrect." 6 47
+            export DIALOGRC=
+        fi
+
+		export DIALOGRC="/root/dialog_jaune"
+        BoiteDeDialogue="dialog \
+        --backtitle \"$FOG_rebranding_software\" \
+        --title \"Login to FOG\" 
+        --insecure \
+        --timeout $FOG_DialogTimeout \
+        --cancel-label \"Cancel\" \
+        --mixedform \
+        \"Enter your FOG credential :\" 10 53 0 \
+        \"Username: \" 1 1 \"\" 1 20 27 64 0 \
+        \"Password:\"  2 1 \"\" 2 20 27 64 1"
+
+        exec 3>&1
+        selection=$(eval $BoiteDeDialogue 2>&1 1>&3)
+        exit_status=$?
+        exec 3>&-
+        if [[ $exit_status != "0" ]]; then
+            weblogin=''
+            webpass=''
+            FOG_username=''
+            FOG_password=''
+            FOG_islogged=0
+            return 1
+        fi
+
+        IFS=$'\n'
+        COMPTE=($selection)
+
+        weblogin="${COMPTE[0]}"
+        webpass="${COMPTE[1]}"
+
+        if [[ -z "$webpass" ]]; then
+			export DIALOGRC="/root/dialog_jaune"
+            BoiteDeDialogue="dialog \
+            --backtitle \"$FOG_rebranding_software\" \
+            --title \"Login to FOG\" 
+            --insecure \
+            --timeout $FOG_DialogTimeout \
+            --cancel-label \"Cancel\" \
+            --mixedform \
+            \"Enter your password :\" 10 53 0 \
+            \"Password:\"  1 1 \"\" 1 20 27 64 1"
+
+            exec 3>&1
+            selection=$(eval $BoiteDeDialogue 2>&1 1>&3)
+            exit_status=$?
+            exec 3>&-
+            if [[ $exit_status != "0" ]]; then
+                weblogin=''
+                webpass=''
+                FOG_username=''
+                FOG_password=''
+                FOG_islogged=0
+                return 1
+            fi
+
+            IFS=$'\n'
+            COMPTE=($selection)
+
+            webpass="${COMPTE[0]}"
+        fi
+    done
+}
+
+FUN_logout () {
+    clear
+    weblogin=''
+    webpass=''
+    FOG_username=''
+    FOG_password=''
+    FOG_islogged=0
+    exit 0
+}
+
+FUN_attachDtach () {
+    dtach -a /run/dtach/console -Ez -r winch
+    FUN_logout
+}
+
+FUN_rebootNow () {
+    echo " ----------------- "
+    echo "  REBOOTING NOW !  "
+    echo " ----------------- "
+    reboot -f
+    FUN_logout
+}
+
+FUN_shell () {
+    # Spawn a shell
+    bash
+    FUN_logout
+}
+
+FUN_restartVNC () {
+    rm /tmp/restart_vnc > /dev/null 2>&1
+    echo 1 > /tmp/enable_vnc 
+    FUN_logout
+}
+
+# Si la variable n'est pas initialisée, le reste du script peut crasher (TODO : nettoyer le script pour que cela n'arrive pas)
+FOG_islogged=0
+
+# Configure le temps (en secondes) avant le timeout d'un élément du menu (défaut : 900 secondes / 15 minutes)
+[[ -z $FOG_DialogTimeout ]] && FOG_DialogTimeout=900
+[[ -n $keymap ]] && loadkeys $keymap
+
+# Support for https://github.com/magnific0/wondershaper/blob/master/wondershaper  ? (eg: revert changes 10 minutes after FOS start)
+init_backtitle
+if [[ -z "$web" ]]; then
+    # Login échouée ? AU REVOIR ! 
+    export DIALOGRC="/root/dialog_rouge"
+    dialog \
+        --backtitle "$FOG_rebranding_software" \
+        --title "ERROR" \
+        --ok-label "Ok" \
+        --timeout $FOG_DialogTimeout \
+        --msgbox "WEB Variable is not defined. Unable to login !" 7 47
+    export DIALOGRC=
+    sleep 1
+    exit 1
+fi
+
+login_fog
+retval=$?
+if [[ $retval == 1 ]]; then
+    # Login échouée ? AU REVOIR ! 
+    export DIALOGRC="/root/dialog_rouge"
+    dialog \
+        --backtitle "$FOG_rebranding_software" \
+        --title "ERROR" \
+        --ok-label "Ok" \
+        --timeout $FOG_DialogTimeout \
+        --msgbox "You must be logged to continue." 7 47
+    export DIALOGRC=
+    sleep 1
+    exit 1
+else
+    case "$1" in
+        FOSConsole)
+            FUN_attachDtach
+        ;;
+        VNCServer)
+            FUN_restartVNC
+        ;;
+        RebootNow)
+            FUN_rebootNow
+        ;;     
+        *)  # Choix CMDLINE par défaut
+            # TODO : Faire un menu basée sur des fichiers, comme confconsole.
+            DIALOG_CANCEL=1
+            DIALOG_ESC=255
+            export DIALOGRC="/root/dialog_jaune"
+
+            BoiteDeDialogue="dialog \
+                --backtitle \"$FOG_rebranding_software\" \
+                --title \"System menu\" \
+                --clear \
+                --timeout $FOG_DialogTimeout \
+                --cancel-label \"Logout\" \
+                --menu \"\" 0 0 10 \
+                \"1\" \"Logout\" \
+                \"\" \"--------------------------\" \
+                \"2\" \"FOS screen console\" \
+                \"\" \"--------------------------\" \
+                \"3\" \"Force reboot (data may be lost)\" \
+                \"4\" \"Open shell\" \
+                \"5\" \"Restart VNC server\" \
+                "
+
+            # ? Add pause FOS ? kill -STOP <pid> / kill -CONT <pid>
+            exec 3>&1
+            selection=$(eval $BoiteDeDialogue 2>&1 1>&3)
+            exit_status=$?
+            exec 3>&-
+
+            case $exit_status in
+                $DIALOG_CANCEL)
+                    FUN_logout
+                ;;
+                $DIALOG_ESC)
+                    FUN_logout
+                ;;
+            esac
+
+            clear
+
+            case $selection in
+                0 ) # ===== NO Selection
+                    FUN_logout
+                    ;;
+                1 ) # ===== LOGOUT
+                    FUN_logout
+                    ;;
+                2 ) # ===== FOS Console
+                    # TODO : Disable CTRL+C
+                    FUN_attachDtach
+                    ;;
+                3 ) # ===== Force Reboot
+                    FUN_rebootNow
+                    ;;
+                4 ) # ===== Start bash console
+                    FUN_shell
+                    ;;
+                5 ) # ===== Restart VNC Server
+                    FUN_restartVNC
+                    ;;
+            esac
+        ;;
+    esac
+
+
+
+
+
+
+
+
+fi
+

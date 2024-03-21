@@ -1,0 +1,6 @@
+#!/bin/bash
+. /usr/share/fog/lib/funcs.sh
+[[ -n $keymap ]] && echo "Load keymap $keymap"
+[[ -n $keymap ]] && loadkeys $keymap
+[[ -z $keymap ]] && echo "Load default keymap"
+exit 0

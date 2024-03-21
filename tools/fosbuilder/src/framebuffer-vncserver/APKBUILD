@@ -1,0 +1,64 @@
+# Contributor: Alexandre BOTZUNG <alexandre.botzung@grandest.fr>
+# Maintainer: Alexandre BOTZUNG <alexandre.botzung@grandest.fr>
+pkgname=framebuffer-vncserver
+pkgver=1
+pkgrel=0
+pkgdesc="A VNC Server for a framebuffer device."
+options="!check" # No testsuite
+url="https://github.com/ponty/framebuffer-vncserver/"
+arch="all"
+license="GPL-2.0-only"
+makedepends="
+	make
+    build-base
+    cmake
+    libvncserver-dev
+    linux-headers
+	"
+subpackages=""
+source='logging.h
+keyboard.c
+keyboard.h
+touch.c
+touch.h
+mouse.c
+mouse.h
+framebuffer-vncserver.c
+README.md
+LICENSE
+framebuffer-vncserver.pro
+CMakeLists.txt
+'
+#     
+
+prepare() {
+	default_prepare
+    mkdir -p "$srcdir/build"
+}
+
+build() {
+    cd build
+    cmake ..
+	make
+    cd ..
+}
+
+package() {
+	install -D -m 0755 "$srcdir"/build/framebuffer-vncserver "$pkgdir"/bin/framebuffer-vncserver
+    
+}
+
+sha512sums="
+347b7e90f5ad6a534a9ab49923a8a2ccad995214e1afb373604b8b26ffa3470d27e554963b0ddc6d110ca8bdeccea45c93302dd8ca2ff96cf9992561a059e343  logging.h
+e01a9e25da079d66e40fb0120fa543b7e584d46d855f6b63a08db21eda4ecc980d5898b6432915b0680d9acf611d293c0ed7c5d5bdeab79fc9d3ea12016582e7  keyboard.c
+e019e0ab70e5ca6b52d1b6b81088bb00984e6c1d8872305c2743b42595215847487a46aad4ed7aee863391bb0f7c1beb902f1bfe3723ef078ee2976291c1b047  keyboard.h
+803f7c15d468bcb762f97aaa165969e7c250f39c2fd0e657c728eb35b40fdc6331b4bcf06fd56d98f36ff9e592d6e5a26899d2f59b58fbc9b3d9b2e419c04654  touch.c
+658ab5fa00f0619486ef0536fcca161165d16acfbe08ccaea9d69953a0d684927b923215299bf3cb0c4808b35a29efb55a15769e2a3bb922bcce3cd418d79d2e  touch.h
+c1f66ed696350b5f42203f235d699e7a466e7389276e145ff9d8b2c65a0afdb71d8729ce85afaaed2657902b572006dfd2f86c2e9e2f857a4a2234629217fd06  mouse.c
+dd0bd967306392212a5f94786e75439ae31b2c1c7b62671a1ad2b86daa2fbd275f9257dd09d8c0a4f49d585043b4160887db943c75a21dd6c8277cbcfbf1326a  mouse.h
+e62befc63fc5e2cd5541bb99aaa4e482870fe5fb025b054f3654806b181398e3345da915c5ad4c57d1dce1d05c1d19efc4f8fb37314c0e17b8818fcd95458b56  framebuffer-vncserver.c
+bae568f71b41277db9f6cb135ca917604e8956784f8018442a11d8bde0226bafc1d19376fe8a9c0fefe41f0d06d4152d286031db77c4a5da2f968aa63c8a684a  README.md
+d281feecb7d1218e1aea8269f288fcd63385da1a130681fadae77262637cb65fed33c8f24a30bcebdac728a359e84044cfc8776eb184571db9af0f6cab1f2579  LICENSE
+b5164d7656cc381f28f9e33a21c9edca0454dc2e5c2c778afbf906e90b53f648af2d1dcee33bbc0d0a6b95b9f0b7c4042aafa06c980d793c1a813df01a71e7cb  framebuffer-vncserver.pro
+89f56ec739fd1e58a2862b1413bf86c9b9cdf729cf0479415e677c102b406ef624e9bae8e741a5cfab988616d9402e274288419f3f00e7c6e15191472c3cf45b  CMakeLists.txt
+"

@@ -1,0 +1,15 @@
+#!/sbin/openrc-run
+
+# Load ttyd with the system menu (to port 81 / HTTP)
+description="ttyd service"
+command="/usr/bin/ttyd"
+command_args="-W -a -p 81 /bin/FOS-AdmRemote >> /dev/null 2>&1&"
+pidfile="/run/ttyd.pid"
+
+depend() {
+    after network
+}
+
+start_pre() {
+    mkdir -p /run/ttyd
+}

@@ -1,0 +1,23 @@
+# /etc/inittab
+
+::sysinit:/sbin/openrc sysinit
+::sysinit:/sbin/openrc boot
+::wait:/sbin/openrc default
+
+# Set up a couple of getty's
+tty1::respawn:/sbin/agetty --login-program "/bin/fos-manager" --login-options "--run-as-service" -n 38400 tty1 linux
+tty2::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" -n 38400 tty2 linux  
+#tty3::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" -n tty3 linux
+#tty4::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" -n tty4 linux
+#tty5::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" -n tty5 linux
+#tty6::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" -n tty6 linux
+
+# Put a getty on the serial port
+#ttyS0::respawn:/sbin/getty -L ttyS0 115200 vt100
+
+# Stuff to do for the 3-finger salute
+::ctrlaltdel:/sbin/reboot
+
+# Stuff to do before rebooting
+::shutdown:/sbin/openrc shutdown
+

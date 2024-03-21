@@ -1,11 +1,11 @@
 Sorry, this document is only available in French (yet) ! 
 
 ============================================================================
-               F O G    P R O J E C T    v 1 . 5 . 10 . X
-                      Unofficial Secure Boot Patch
+                    F O G U E F I    v 1 . 5 . 10 . X
+                Unofficial Secure Boot Patch for FOG 'FOS'
   Alexandre BOTZUNG [alexandre.botzung@grandest.fr] && The FOG Project Team
 https://github.com/abotzung/foguefi / https://github.com/FOGProject/fogproject
-                   VERSION : 20230307 (Licence : GPL-3)
+                   VERSION : 20240321 (Licence : GPL-3)
 ============================================================================
 
 Ces notes résument la liste des fonctionnalités ajoutés dans FOG Project.
@@ -54,6 +54,14 @@ un éventuel conflit avec les paramètres de ce dernier, les entrées ont étés
 
 Quelques modifications ont étés réalisés, afin de pouvoir avoir :
 
+- Visualiser l'état du client à distance à l'aide d'un navigateur ; FOS remonte désormais son statut au travers d'une interface web.
+
+- Contrôler le client FOS à l'aide d'un navigateur ; une console spécifique existe sur le port 81. Pour y accéder, vous devez vous authentifier avec 
+  votre compte et mot de passe de FOG.
+
+- La console linux secondaire (CTRL + ALT + F2) vous permets d'accéder à une console système. Après une authentification réussie, vous pouvez redémarrer le poste, relancer
+  VNC ou lancer un shell. Le compte à utiliser est le même que celui utilisée pour l'interface web de FOG.
+
 - Un serveur VNC, permettant de visualiser le process de FOS à distance.
   Celui-ci ne possède pas de mot de passe par défaut, et pour des raisons de sécurité n'écoute que sur l'adresse de bouclage "localhost".
   Une série de script (avec socat) renvoie la connexion VNC vers le serveur FOG, qui la renvoie vers la dernière adresse IP connue de la dernière connexion
@@ -80,13 +88,6 @@ Quelques modifications ont étés réalisés, afin de pouvoir avoir :
   Notez que dans le cas où l'identifiant/mot de passe/ID de l'image sont faux, il sera demandé à l'utilisateur de corriger ces informations.
   Il existe d'autres paramètres décris dans le fichier /tftpboot/grub/grub.cfg
 
-- L'interface graphique X
-  Un process à été conçu afin de pouvoir démarrer une interface graphique X, possédant Firefox et la console FOS.
-  Permettant de changer des réglages particuliers sur le serveur depuis un client FOS.
-  Le programme "dtach" est utilisé afin de séparer FOS en arrière-plan, afin de le ré-ouvrir plus tard.
-  (Il utilise le script située dans /images/!xserver/fog.xserver)
-  (en Alpha)
-
 - Des détails en vrac: 
   * Lors d'un "Perform full registration and inventory", si vous sélectionnez "voulez-vous télécharger l'image maintenant ?", le système ne redémarre pas 
      et exécute immédiatement le téléchargement.
@@ -103,14 +104,10 @@ Quelques modifications ont étés réalisés, afin de pouvoir avoir :
 
   * Memtester est utilisée à la place de Memtest86. (dont une partie du code à été écris par Steven Shiau <steven _at_ clonezilla org>)
 
-
 Il existe tout de même quelques bogues, encore pas corrigées : 
 
 - Dans le cas où l'hôte à été ajoutée dans le serveur FOG via le client FOG, et que celui-ci n'a pas été approuvée, il sera impossible de lui télécharger une image.
-    Solution : Approuver l'hôte, ou le supprimer du serveur.
-
-- "Enable GUI" ne fonctionne pas encore de manière stable. Je travaille actuellement à la création d'une recette afin de créer l'environnement de 
-   manière automatisée. (à l'aide d'une rootfs AlpineLinux)
+    Solution : Approuver l'hôte.
 
 - [(Windows(c)] Il peut arriver que FOS n'arrive pas à capturer un disque NTFS, car il contient des métadonnées non écrites. Cela peut provenir de 2 éléments : 
   Passez la clé "ControlSet001\Control\Session Manager\Power\HiberbootEnabled" à "0" (Veille hybride)

@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+
+# Start FOG ; Alex BOTZUNG
+
+description="Start FOG"
+
+depend() {
+	keyword -prefix -lxc -docker
+}
+
+start() {
+	ebegin "Starting FOG"
+	sleep 1
+	# Call "fos-manager". This function can, if needed, respawn itself.
+	/bin/fos-manager --run-as-service
+	eend $?
+}

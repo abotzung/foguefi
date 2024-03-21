@@ -1,0 +1,56 @@
+diff -ruN ./usr/share/fog/lib/funcs.sh ../FOS_PREP/usr/share/fog/lib/funcs.sh
+--- ./usr/share/fog/lib/funcs.sh	2024-03-05 02:16:16.625283904 +0100
++++ ../FOS_PREP/usr/share/fog/lib/funcs.sh	2024-01-05 03:08:56.000000000 +0100
+@@ -27,24 +27,24 @@
+ # Displays the nice banner along with the running version
+ displayBanner() {
+     version=$(curl -Lks ${web}service/getversion.php 2>/dev/null)
+-    echo "   =================================="
+-    echo "   ===        ====    =====      ===="
+-    echo "   ===  =========  ==  ===   ==   ==="
+-    echo "   ===  ========  ====  ==  ====  ==="
+-    echo "   ===  ========  ====  ==  ========="
+-    echo "   ===      ====  ====  ==  ========="
+-    echo "   ===  ========  ====  ==  ===   ==="
+-    echo "   ===  ========  ====  ==  ====  ==="
+-    echo "   ===  =========  ==  ===   ==   ==="
+-    echo "   ===  ==========    =====      ===="
+-    echo "   =================================="
+-    echo "   ===== Free Opensource Ghost ======"
+-    echo "   =================================="
+-    echo "   ============ Credits ============="
+-    echo "   = https://fogproject.org/Credits ="
+-    echo "   =================================="
+-    echo "   == Released under GPL Version 3 =="
+-    echo "   =================================="
++    echo -e "\033[97;44m   ██████████████████████████████████   \033[0m"
++    echo -e "\033[97;44m   ███        ████    █████      ████   \033[0m"
++    echo -e "\033[97;44m   ███  █████████  ██  ███   ██   ███   \033[0m"
++    echo -e "\033[97;44m   ███  ████████  ████  ██  ████  ███   \033[0m"
++    echo -e "\033[97;44m   ███  ████████  ████  ██  █████████   \033[0m"
++    echo -e "\033[97;44m   ███      ████  ████  ██  █████████   \033[0m"
++    echo -e "\033[97;44m   ███  ████████  ████  ██  ███   ███   \033[0m"
++    echo -e "\033[97;44m   ███  ████████  ████  ██  ████  ███   \033[0m"
++    echo -e "\033[97;44m   ███  █████████  ██  ███   ██   ███   \033[0m"
++    echo -e "\033[97;44m   ███  ██████████    █████      ████   \033[0m"
++    echo -e "\033[97;44m   ██████████████████████████████████   \033[0m"
++    echo -e "\033[97;44m   █████ Free Opensource Ghost ██████   \033[0m"
++    echo -e "\033[97;44m   ██████████████████████████████████   \033[0m"
++    echo -e "\033[97;44m   ██████████== Credits ==███████████   \033[0m"
++    echo -e "\033[97;44m   █ https://fogproject.org/Credits █   \033[0m"
++    echo -e "\033[97;44m   ██████████████████████████████████   \033[0m"
++    echo -e "\033[97;44m   ██ Released under GPL Version 3 ██   \033[0m"
++    echo -e "\033[97;44m   ██████████████████████████████████   \033[0m"
+     echo "   Version: $version"
+     echo "   Init Version: $initversion"
+ }
+@@ -57,7 +57,8 @@
+ # Gets all system mac addresses except for loopback
+ getMACAddresses() {
+     read ifaces <<< $(/sbin/ip -4 -o addr | awk -F'([ /])+' '/global/ {print $2}' | tr '[:space:]' '|' | sed -e 's/^[|]//g' -e 's/[|]$//g')
+-    read mac_addresses <<< $(/sbin/ip -0 addr | awk 'ORS=NR%2?FS:RS' | awk "/$ifaces/ {print \$11}" | tr '[:space:]' '|' | sed -e 's/^[|]//g' -e 's/[|]$//g')
++    # PATCH : -awk "/$ifaces/ {print \$11}" +awk "/$ifaces/ {print \$13}"
++    read mac_addresses <<< $(/sbin/ip -0 addr | awk 'ORS=NR%2?FS:RS' | awk "/$ifaces/ {print \$13}" | tr '[:space:]' '|' | sed -e 's/^[|]//g' -e 's/[|]$//g')
+     echo $mac_addresses
+ }
+ # Gets all macs and types.

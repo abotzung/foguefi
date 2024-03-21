@@ -1,0 +1,15 @@
+#!/sbin/openrc-run
+
+# Change root password ; Alex BOTZUNG
+
+description="Change root password"
+
+depend() {
+	keyword -prefix -lxc -docker
+}
+
+start() {
+	ebegin "Change root password"
+	bash /bin/FOS-ChangeRootPWD
+	eend $?
+}

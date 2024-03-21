@@ -1,0 +1,37 @@
+# Contributor: The FOG Project <contact@fogproject.org>
+# Maintainer: The FOG Project <contact@fogproject.org>
+pkgname=fogmbrfix
+pkgver=1
+pkgrel=0
+pkgdesc="FOG specific binaries from the current release. "
+options="!check" # No testsuite
+url="https://fogproject.org/"
+arch="all"
+license="GPL-2.0-only"
+makedepends="
+	make
+    build-base
+	"
+subpackages=""
+source="fogmbrfix.cpp
+Makefile
+"
+#     
+
+prepare() {
+	default_prepare
+}
+
+build() {
+	make
+}
+
+package() {
+    find /root > /root/file.txt
+	install -D -m 0755 "$srcdir"/fogmbrfix "$pkgdir"/bin/fogmbrfix
+    
+}
+
+sha512sums="4daf7d5202d7bc4f01bf966b9a73194c31f99ecf0b64e60ec7442101d09919add4cde4f2d02a73c98c40d0c61eadc57c97c6b5606a0d018c3a6cfedb2e04a5a2  fogmbrfix.cpp
+38c3631ce1ed3d86cd4a6611689c2089130262860baa229990b152c09094de8612bf8706373a159dbe8cdefda0bc3d90639712fda05108aacc6c96ec78573cc8  Makefile
+"

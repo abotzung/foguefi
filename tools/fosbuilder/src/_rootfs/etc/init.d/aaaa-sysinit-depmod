@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+
+# Test depmod ; Alex BOTZUNG
+
+description="Run depmod."
+
+depend() {
+	before devfs
+	keyword -prefix -lxc -docker
+}
+
+start() {
+	ebegin "Probing modules (with depmod)"
+	depmod
+	eend $?
+}
