@@ -2,6 +2,8 @@
 
 . /usr/share/fog/lib/funcs.sh
 
+if [[ "$1" != "--run-as-service" ]]; then _run_as_service='0'; else _run_as_service='1'; fi
+
 getIPAddresses() {
     read ipaddr <<< $(/sbin/ip -4 -o addr | awk -F'([ /])+' '/global/ {print $4}' | tr '[:space:]' '|' | sed -e 's/^[|]//g' -e 's/[|]$//g')
     echo $ipaddr
@@ -58,6 +60,8 @@ login_fog () {
     if [[ "$FOG_islogged" == "1" ]]; then # Est-on déjà connecté ? Si oui, pas la peine de refaire une demande d'auth.
         return 0
     fi
+    weblogin=''
+    webpass=''
 
     weblogin=$FOG_username
     webpass=$FOG_password    
@@ -71,19 +75,27 @@ login_fog () {
         if [[ -n "$weblogin" && -n "$webpass" ]]; then
             # Si on a déjà le login et le mot de passe, j'essaye une authentification
             # Cela permettera d'automatiser des connexions via le boot par clé usb ("FOG Self-Service")
-            DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&username=${weblogin}&password=${webpass}" "${web}service/grub/grub.php" -A '')
+            #DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&username=${weblogin}&password=${webpass}" "${web}service/grub/grub.php" -A '')
+
+            _templogin=$(echo $weblogin | tr -d '\012' | base64)
+            _temppass=$(echo $webpass | tr -d '\012' | base64)
+            DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&username=${_templogin}&password=${_temppass}" "${web}service/checkcredentials.php" -A '')
+            _templogin=''
+            _temppass=''
+
 
             ### Mot de passe incorrect : 
             if [[ $DoCurl == *"#!ok"* ]]; then
                 FOG_username=$weblogin
                 FOG_password=$webpass
+                weblogin=''
+                webpass=''
                 FOG_islogged=1
                 return 0
             fi
             
             # Compte incorrect, détruit les variables en mémoire
-            weblogin=''
-            webpass=''
+
             FOG_username=''
             FOG_password=''
             FOG_islogged=0
@@ -187,6 +199,8 @@ FUN_rebootNow () {
 
 FUN_shell () {
     # Spawn a shell
+    clear
+    displayBanner
     bash
     FUN_logout
 }
@@ -260,6 +274,7 @@ else
                 --menu \"\" 0 0 10 \
                 \"1\" \"Logout\" \
                 \"\" \"--------------------------\" \
+                $([[ "$_run_as_service" == '0' ]] && echo "\"2\" \"FOS screen console\"") \
                 \"2\" \"FOS screen console\" \
                 \"\" \"--------------------------\" \
                 \"3\" \"Force reboot (data may be lost)\" \

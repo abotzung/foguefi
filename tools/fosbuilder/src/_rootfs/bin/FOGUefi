@@ -90,6 +90,8 @@ login_fog () {
     if [[ "$FOG_islogged" == "1" ]]; then # Est-on déjà connecté ? Si oui, pas la peine de refaire une demande d'auth.
         return 0
     fi
+    weblogin=''
+    webpass=''
 
     weblogin=$FOG_username
     webpass=$FOG_password    
@@ -100,28 +102,30 @@ login_fog () {
     MONmac=$(getMACAddresses)
     
     while true; do
-        verifTaches                # Vérifie que le serveur FOG nous a pas donnés une tâche . . .
-        verifTachesFLAG=$?
-        if [[ $verifTachesFLAG == 1 ]]; then
-            do_fog                # Une tâche est programmée -> je l'exécute.
-        fi
-    
         if [[ -n "$weblogin" && -n "$webpass" ]]; then
             # Si on a déjà le login et le mot de passe, j'essaye une authentification
             # Cela permettera d'automatiser des connexions via le boot par clé usb ("FOG Self-Service")
-            DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&username=${weblogin}&password=${webpass}" "${web}service/grub/grub.php" -A '')
+            #DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&username=${weblogin}&password=${webpass}" "${web}service/grub/grub.php" -A '')
+
+            _templogin=$(echo $weblogin | tr -d '\012' | base64)
+            _temppass=$(echo $webpass | tr -d '\012' | base64)
+            DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&username=${_templogin}&password=${_temppass}" "${web}service/checkcredentials.php" -A '')
+            _templogin=''
+            _temppass=''
+
 
             ### Mot de passe incorrect : 
             if [[ $DoCurl == *"#!ok"* ]]; then
                 FOG_username=$weblogin
                 FOG_password=$webpass
+                weblogin=''
+                webpass=''
                 FOG_islogged=1
                 return 0
             fi
             
             # Compte incorrect, détruit les variables en mémoire
-            weblogin=''
-            webpass=''
+
             FOG_username=''
             FOG_password=''
             FOG_islogged=0
@@ -136,6 +140,8 @@ login_fog () {
             export DIALOGRC=
         fi
 
+	export DIALOGRC=''
+	#export DIALOGRC="/root/dialog_jaune"
         BoiteDeDialogue="dialog \
         --backtitle \"$FOG_rebranding_software\" \
         --title \"Login to FOG\" 
@@ -166,7 +172,8 @@ login_fog () {
         weblogin="${COMPTE[0]}"
         webpass="${COMPTE[1]}"
 
-        if [[ ! -n "$webpass" ]]; then
+        if [[ -z "$webpass" ]]; then
+	    #export DIALOGRC="/root/dialog_jaune"
             BoiteDeDialogue="dialog \
             --backtitle \"$FOG_rebranding_software\" \
             --title \"Login to FOG\" 
@@ -459,7 +466,7 @@ hotpatch_fog() {
 }
 
 PROCESS_SelectDownloadImage() {
-    # Cette partie propose de choisir une image à remastériser. Elle crée elle-même la fause tâche "false tasking".
+    # Cette partie propose de choisir une image à remastériser. Elle crée elle-même la fausse tâche "false tasking".
     
     # Vérifie que le serveur FOG nous a pas donnés une tâche . . .
     verifTaches                
