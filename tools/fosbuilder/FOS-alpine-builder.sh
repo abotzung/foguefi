@@ -326,6 +326,7 @@ function umount_devproc {
 
 # Code from Mikel (https://unix.stackexchange.com/users/3169/mikel)
 # check if stdout is a terminal...
+C_ColTERM=0
 if test -t 1; then
     # see if it supports colors...
     ncolors=$(tput colors)
