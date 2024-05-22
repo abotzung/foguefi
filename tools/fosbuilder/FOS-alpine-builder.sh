@@ -13,7 +13,7 @@
 : "${UBUNTU_repo_url:=http://archive.ubuntu.com/ubuntu}"
 : "${UBUNTU_package_name:=linux-image-generic}"
 : "${UBUNTU_architecture:=amd64}"
-: "${UBUNTU_distroname:=lunar}"
+: "${UBUNTU_distroname:=noble}"
 : "${GITHUB_alpine_chroot_install:=https://github.com/alpinelinux/alpine-chroot-install/}"
 : "${GITHUB_FOS:=https://github.com/FOGProject/FOS/}"
 # -----
