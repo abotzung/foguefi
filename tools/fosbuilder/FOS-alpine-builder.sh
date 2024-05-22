@@ -263,11 +263,12 @@ function unpack_deb {
   _pkgdeb="$2"
 
   cd "$_pkgout"
-  ar vx "$_pkgdeb" data.tar.gz data.tar.xz data.tar.zst >> "$do_logfile" 2>&1
+  ar vx "$_pkgdeb" data.tar.gz data.tar.xz data.tar.zst data.tar >> "$do_logfile" 2>&1
   cd "$_oldPWD"
   _tarpkg="${_pkgout}/data.tar.gz"
   if [ ! -r "$_tarpkg" ]; then _tarpkg="${_pkgout}/data.tar.xz"; fi
   if [ ! -r "$_tarpkg" ]; then _tarpkg="${_pkgout}/data.tar.zst"; fi
+  if [ ! -r "$_tarpkg" ]; then _tarpkg="${_pkgout}/data.tar"; fi
   if [ ! -r "$_tarpkg" ]; then _ERRMSG="FATAL : Unable to find package output for $_pkgdeb"; false; exit 1; fi
 
   _retval="$_tarpkg"
@@ -322,7 +323,6 @@ function umount_devproc {
 
 # Code from Mikel (https://unix.stackexchange.com/users/3169/mikel)
 # check if stdout is a terminal...
-C_ColTERM=0
 if test -t 1; then
     # see if it supports colors...
     ncolors=$(tput colors)
@@ -360,6 +360,7 @@ if test -t 1; then
         C_CYAN="6"
         # shellcheck disable=SC2034
         C_WHITE="7"
+        C_ColTERM=0
     fi
 fi
 
@@ -607,8 +608,11 @@ eenter 'Copy Linux, Shim and Grub to the release folder'
   _ERRMSG='FATAL : Unable to copy Linux, Shim and Grub to the release folder'
   {
   cp -vf "$_LINUXKRNL" "$(get_basedir_release)/linux_kernel"
+  chmod +r "$(get_basedir_release)/linux_kernel"
   cp -vf "$_SHIM" "$(get_basedir_release)/shimx64.efi"
+  chmod +r "$(get_basedir_release)/shimx64.efi"
   cp -vf "$_GRUB" "$(get_basedir_release)/grubx64.efi"
+  chmod +r "$(get_basedir_release)/grubx64.efi"
   } >> "$do_logfile" 2>&1
 eend 'Done' "$C_GREEN"
 
@@ -859,6 +863,7 @@ EOF
     xz -e -7 -T0 -C crc32 "$(get_basedir_temp)"/fog_uefi.cpio >> "$do_logfile" 2>&1
     #xz -7 -T0 -C crc32 "$(get_basedir_temp)"/fog_uefi.cpio >> "$do_logfile" 2>&1
     mv "$(get_basedir_temp)"/fog_uefi.cpio.xz "$(get_basedir_release)"/fog_uefi.cpio.xz
+    chmod +r "$(get_basedir_release)"/fog_uefi.cpio.xz
   eend "Done ($(du -hs --apparent-size "$(get_basedir_release)"/fog_uefi.cpio.xz | cut -f1))" "$C_GREEN"
 
   _logecho "=> $(basename "$0") finished. Thanks for using my script."
@@ -891,11 +896,6 @@ else
   #   fi
   # "apk update"
   # Find a way to install shitton of apk packages, by hand.
-  _ERRMSG='Not implemented - Alpine Linux install without internet.'
+  _ERRMSG='Not implemented'
   false
 fi
-
-
-
-
-
