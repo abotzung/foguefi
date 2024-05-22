@@ -16,6 +16,7 @@
 : "${UBUNTU_distroname:=noble}"
 : "${GITHUB_alpine_chroot_install:=https://github.com/alpinelinux/alpine-chroot-install/}"
 : "${GITHUB_FOS:=https://github.com/FOGProject/FOS/}"
+: "${ALPINE_distroname:=v3.20}"
 # -----
 _retval=''
 # List of apk to be installed into Alpine Linux
@@ -633,7 +634,7 @@ if [ "$_OFFLINE" -eq "0" ]; then
   # -------
 
   eenter 'Create Alpine Linux rootfs (base)'
-    "$(get_basedir_sources)/alpine-chroot-install/alpine-chroot-install" -a 'x86_64' -d "$(get_basedir_rootfs)" -t "$(get_basedir_temp)" -p 'alpine-baselayout' -k 'ARCH CI QEMU_EMULATOR TRAVIS_.* http_proxy https_proxy' >> "$do_logfile" 2>&1
+    "$(get_basedir_sources)/alpine-chroot-install/alpine-chroot-install" -a 'x86_64' -b "${ALPINE_distroname}" -d "$(get_basedir_rootfs)" -t "$(get_basedir_temp)" -p 'alpine-baselayout' -k 'ARCH CI QEMU_EMULATOR TRAVIS_.* http_proxy https_proxy' >> "$do_logfile" 2>&1
     # Remove mount point
     umount_devproc "$(get_basedir_rootfs)"
   eend 'Done' "$C_GREEN"
