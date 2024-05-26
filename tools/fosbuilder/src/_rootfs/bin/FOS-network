@@ -2,8 +2,21 @@
 #
 # Start the network....
 #
-# v v v - Ajout 20240104 - AlexB - -> Comment rcS a conscience du contenu des variables cmdline <--> $web,.... ?
-. /usr/share/fog/lib/funcs.sh
+# ----------------------------------------
+# 20240526 - Mise à jour avec S40network : 
+# Add domacset capability - @mastacontrola
+#
+#1. This presumably adjusts passthrough macs.
+#2. Thank you George :)
+#3. See here why I am thanking:
+#https://forums.fogproject.org/topic/15885/hp-probook-430-g8-system-mac-not-passing-through-usb-type-c-dongle/11?page=1
+
+# Geo-Grabbing kernel parameters because the variables are probably not set yet
+for var in $(cat /proc/cmdline); do
+	var=$(echo "${var}" | awk -F= '{name=$1; gsub(/[+][_][+]/," ",$2); gsub(/"/,"\\\"", $2); value=$2; if (length($2) == 0 || $0 !~ /=/ || $0 ~ /nvme_core\.default_ps_max_latency_us=/) {print "";} else {printf("%s=%s", name, value)}}')
+    [[ -z $var ]] && continue;
+    eval "export ${var}" 2>/dev/null
+done
 
 # vvv - Ne fonctionne pas dans FOGUefi ; les pilotes "ethernet/gadget" ont étés retirés. 
 if [[ -n $has_usb_nic ]]; then
@@ -19,7 +32,7 @@ echo -e "auto lo\niface lo inet loopback\n\n" > /etc/network/interfaces
 /sbin/ip link set lo up
 
 # Sleep 10 ? Nécessaire ? 
-sleep 10
+sleep 2
 
 # Generated a sorted list with primary interfaces first
 read p_ifaces <<< $(/sbin/ip -0 addr show | awk 'ORS=NR%2?FS:RS' | awk -F'[: ]+' 'tolower($0) ~ /link[/]?ether/ && tolower($0) ~ /'$mac'/ {print $2}' | tr '\n' ' ')
@@ -48,9 +61,30 @@ for iface in $ifaces; do
         # we know we have link so no need to continue on.
         # NOTE: the link to web is kind of important, just
         # exiting on dhcp request is not sufficient.
-        [[ $ustat -eq 0 && $cstat -eq 0 ]] && exit 0
+        if [[ $ustat -eq 0 && $cstat -eq 0 ]]; then
+            if [[ ! -z $mac && ! -z $domacset ]]; then
+                # Update the mac address if the DoMACSet flag
+                # has been raised
+                ip link set dev $iface down
+                ip link set dev $iface address $mac
+                ip link set dev $iface up
+                # Détruits les variables domacset et mac (temporairement).
+                #   Permets à FOG de pouvoir quitter la boucle de récupération DHCP APRES le passage de celui-ci.
+                mac=""
+                domacset=""
+            else
+				exit 0
+			fi
+        fi
         echo "Either DHCP failed or we were unable to access ${web}/index.php for connection testing."
-        sleep 1
+        # Geo-If we are on the 2nd loop, lets check too see if
+        # spanning tree is blocking dhcp
+        if [[ $seq -eq 2 ]]; then
+            echo "Waiting for Spanning Tree timeout on ${iface}..."
+            sleep 27
+        else
+            sleep 1
+        fi
     done
     echo "No DHCP response on interface $iface, skipping it."
 done
