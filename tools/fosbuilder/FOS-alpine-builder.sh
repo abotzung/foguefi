@@ -851,6 +851,10 @@ EOF
   _ERRMSG='FATAL: Prepare CPIO : unmount_devproc failed for ./buildtool'
   umount_devproc "$(get_basedir_buildtool)"
 
+  eenter 'Patching ssh to enable sftp fonctionality'
+  sed -i '/Subsystem    sftp/c\Subsystem sftp internal-sftp' "$(get_basedir_rootfs)/etc/ssh/sshd_config"
+  eend 'Done' "$C_GREEN"
+  
   # !!! DANGER AREA !!!
   # The Linux kernel generates a Kernel Panic 'Unable to mount root fs on unknown-block(0,0)' if (or based condition):
   #  * NO "/init" executable file are present into the CPIO ("ln -sv ./bin/busybox ./init" should do the trick)
