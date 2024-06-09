@@ -47,6 +47,7 @@
 #    FOG_username=<COMPTE EXISTANT SUR LE SERVEUR FOG> FOG_password=<Mot de passe> \
 #    FOG_imageID=42
 
+# Source les fonctions internes de FOG
 . /usr/share/fog/lib/funcs.sh
 
 getIPAddresses() {
