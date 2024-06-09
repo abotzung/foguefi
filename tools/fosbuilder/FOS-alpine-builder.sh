@@ -1,5 +1,5 @@
 #!/bin/bash
-# FOS Alpine Linux builder - 2024.01.24
+# FOS Alpine Linux builder - 2024.01.24
 #
 #
 # External deps : curl, wget, tput, stat, du, _binutils_ (ar), zstd, realpath, tar, _rsync_, xz
@@ -902,4 +902,8 @@ else
   #   	mount -v --bind "$BIND_DIR" "${CHROOT_DIR}${BIND_DIR}"
   #   	mount --make-private "${CHROOT_DIR}${BIND_DIR}"
   #   fi
-  # "apk update"tem 
+  # "apk update"
+  # Find a way to install loads of apk packages (+recompilation ?), by hand.
+  _ERRMSG='Not implemented'
+  false
+fi
