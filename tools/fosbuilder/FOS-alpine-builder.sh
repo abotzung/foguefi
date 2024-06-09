@@ -852,7 +852,7 @@ EOF
   umount_devproc "$(get_basedir_buildtool)"
 
   eenter 'Patching ssh to enable sftp fonctionality'
-  sed -i '/Subsystem    sftp/c\Subsystem sftp internal-sftp' "$(get_basedir_rootfs)/etc/ssh/sshd_config"
+  sed -i '/Subsystem/c\Subsystem sftp internal-sftp' "$(get_basedir_rootfs)/etc/ssh/sshd_config"
   eend 'Done' "$C_GREEN"
   
   # !!! DANGER AREA !!!
@@ -902,8 +902,4 @@ else
   #   	mount -v --bind "$BIND_DIR" "${CHROOT_DIR}${BIND_DIR}"
   #   	mount --make-private "${CHROOT_DIR}${BIND_DIR}"
   #   fi
-  # "apk update"
-  # Find a way to install shitton of apk packages, by hand.
-  _ERRMSG='Not implemented'
-  false
-fi
+  # "apk update"tem 
