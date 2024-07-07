@@ -29,7 +29,7 @@ apk_list=('alpine-base' 'acl' 'bash' 'btrfs-progs' 'bzip2' 'cabextract' 'chntpw'
 'pcre' 'pigz' 'popt' 'rsync' 'sed' 'smartmontools' 'socat' 'util-linux' 'nano' \
 'xfsprogs' 'xz' 'zlib' 'zstd' 'curl' 'wget' 'testdisk' 'dialog' \
 'kmod' \
-'dtach' 'ttyd' 'mini_httpd') # Ajouts pour FOGUefi
+'dtach' 'ttyd' 'mini_httpd' 'memtester') # Ajouts pour FOGUefi
 # Ajout 20240522 - kmod -> Nécessaire pour depmod/insmod correctement les modules d'Ubuntu 24.04
 
 # Quitte immédiatement si il y a une erreur non gérée
