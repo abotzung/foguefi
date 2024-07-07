@@ -275,7 +275,6 @@ else
                 \"1\" \"Logout\" \
                 \"\" \"--------------------------\" \
                 $([[ "$_run_as_service" == '0' ]] && echo "\"2\" \"FOS screen console\"") \
-                \"2\" \"FOS screen console\" \
                 \"\" \"--------------------------\" \
                 \"3\" \"Force reboot (data may be lost)\" \
                 \"4\" \"Open shell\" \

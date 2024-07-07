@@ -3,21 +3,324 @@
 trap '' 2 2>&1
 mkdir /run/dtach >/dev/null 2>&1
 
-if [[ "$1" != "--run-as-service" ]]; then echo "fos-manager must be launched in a service."; exit 1; fi
+if [[ "$1" != "--run-as-service" ]] && [[ "$1" != "--main-menu" ]]; then echo "fos-manager must be launched in a service."; exit 1; fi
+if [[ "$1" == "--run-as-service" ]]; then 
+    # Le programme est exécuté "comme un service" ? 
+    # -> relance "fos-manager --main-menu" au travers de dtach (en boucle)!
+    while true
+    do
+        # -- v -- Disable ctrl+c handling by the current console
+        trap '' 2 2>&1
+        stty -ixon 2>&1
 
+        dtach -c /run/dtach/console -Ez -r winch /bin/fos-manager --main-menu
+        echo " !! dtach exited ($?) !!"
+        sleep 3
+    done
+fi
+
+# Mode de "rédemption" ; relance le process FOS dans le cas où celui-ci crash. (présence de /tmp/fos_error.log)
+restart_FOS=2
+
+# Liste des triggers : 
+# /tmp/trigger.error_collection  ; est exécuté pour remonter les logs d'erreurs vers le serveur FOG
+# /tmp/trigger.fos_error         ; est exécuté au moment d'un erreur générée par FOG
+# /tmp/trigger.fos_warning       ; est exécuté au moment d'une attention particulière générée par FOG
+
+# Fonctionnalités ajoutés : 
+# Lors d'un crash "ERROR"; pendant le délai de 60 secondes, pressez ' ' (espace) pour stopper le décompte et permettre un débug (pendant 2 heures)
+# 
 
 while true
 do
     # This is the main loop of "fos-manager"
     # Here, we catch potential errors
-    # Actually, FOGUefi never quit ; error catching must be done in funcs.sh / FOGUefi
+
+    # -- v -- Disable ctrl+c handling by the current console
     trap '' 2 2>&1
     stty -ixon 2>&1
 
-    dtach -c /run/dtach/console -Ez -r winch /bin/FOGUefi
+    # -- v -- Source the current FOGUefi+FOG libary. This automatically populate cmdline "variables" (if set)
+    . /usr/share/foguefi/funcs.sh
 
-    clear
-    echo "FOGUefi has crashed, respawn in 1..."
-    sleep 1
+    # -- v -- Start mdadm in case of mdraid flag
+    if [[ $mdraid == true ]]; then
+        mdadm --auto-detect
+        mdadm --assemble --scan
+        mdadm --incremental --run --scan
+    fi   
+
+    # -- v -- Always verify if we must execute a task/mode, unless the variable 'osid' is populated.
+    #         (also variables are also populated by FOG/lib/funcs.sh)
+    if [[ -z $osid ]]; then
+        LEuuid=$(dmidecode -s system-uuid)
+        LEuuid=${LEuuid,,}
+        LeMAC=$(getMACAddresses)
+
+        curl -Lks -o /tmp/hinfo.txt --data "sysuuid=${LEuuid}&mac=$LeMAC" "${web}service/hostinfo.php" -A ''
+        
+        if [[ -f /tmp/hinfo.txt ]]; then
+            dummy=$(cat /tmp/hinfo.txt | grep export)
+            # Not a export ? Delete the file
+            [[ "$dummy" != *"export"* ]] && rm /tmp/hinfo.txt
+        fi
+        [[ -f /tmp/hinfo.txt ]] && . /tmp/hinfo.txt
+    fi
+
+    # -- v -- Determine if a task is scheduled for us
+    # TABLE DE VERITEE :
+    # $type        $mode        $osid            $FLAG
+    #
+    #  xxx       -               -              no 
+    #   -         xxx          -                YES (local tasking) 
+    #   -        -           xxx                non
+    #  xxx       -           xxx                YES (server task or scheduled)
+    #  xxx       xxx         xxx                YES (server task or special scheduled tasking)
+    #
+    FLAG_scheduledTask=0
+    if [[ -n $type && -n $osid ]]; then
+        # Si $type est définie {up/down} && que $osid est définie (peut importe $mode), il y a quelque-chose à faire
+        #echo "Tache programmée (SERVEUR/PROGRAMMEE)"
+        FLAG_scheduledTask=1 # 1 = Tache programmée
+    fi
+    if [[ -z $type && -n $mode ]]; then
+        # Si $mode est définie {clamav, manreg...} && que $type n'est pas définie, il y a un mode à traîter
+        #echo "Tache programmée (MODE)"
+        FLAG_scheduledTask=2 # 2 = Mode programmée
+    fi
+    if [[ "$FLAG_scheduledTask" -ne 0 ]]; then
+        # Task/Mode detected, show a way to interrupt a Fog process
+        friendlyOperationName=''
+        case "$FLAG_scheduledTask" in
+            1) # up/down
+                case "$type" in
+                    up)
+                        friendlyOperationName='\033[30;103m upload image \033[0m'
+                        ;;
+                    down)
+                        if [[ "$mc" == "yes" ]]; then # Mode multicast
+                            friendlyOperationName='\033[30;42m download image (Multicast)\033[0m'
+                        else
+                            friendlyOperationName='\033[30;42m download image \033[0m'
+                        fi
+                        ;;
+                    *)
+                        friendlyOperationName="?? $type"
+                        ;;
+                esac
+                ;;
+            2) # autoreg/manreg/clamav/memtest/...
+                case "$mode" in
+                    sysinfo)
+                        friendlyOperationName='basic system information'
+                        ;;
+                    clamav)
+                        friendlyOperationName='virus scan' # Deprecated by the FOG Team
+                        ;;
+                    onlydebug)
+                        friendlyOperationName='debug'
+                        ;;
+                    checkdisk)
+                        friendlyOperationName='test disk'
+                        ;;
+                    badblocks)
+                        friendlyOperationName='disk surface test'
+                        ;;
+                    photorec)
+                        friendlyOperationName='recover files'
+                        ;;
+                    winpassreset)
+                        friendlyOperationName='\033[97;41m reset Windows passwords \033[0m'
+                        ;;
+                    wipe)
+                        friendlyOperationName='\033[97;41m wipe hard disk \033[0m'
+                        ;;                                                
+                    autoreg)
+                        friendlyOperationName='automatic inventory and registration'
+                        ;;
+                    manreg)
+                        friendlyOperationName='manual inventory and registration'
+                        ;;
+                    *)
+                        friendlyOperationName="??? $mode"
+                        ;;
+                esac
+                ;;
+        esac
+
+        clear
+        displayBanner
+
+        echo -e " * An operation $friendlyOperationName is scheduled now"
+        echo " Press ESC to cancel, SPACE to start now, ENTER to enter plugins menu"
+        echo " * Starting in "
+        for i in {10..1}
+        do
+            _tempPrompt=''
+            IFS=''
+            read -p "$i..." -r -s -N 1 -t 1 _tempPrompt
+            #[[ ! -z "$_tempPrompt" ]] && break
+            # https://stackoverflow.com/questions/2612274/bash-shell-scripting-detect-the-enter-key
+            if [[ "$_tempPrompt" == $'\x0a' ]]; then
+                # == ENTER pressed ==
+                break
+            elif [[ "$_tempPrompt" == ' ' ]]; then
+                # == Spacebar pressed ==
+                break 
+            elif [[ "$_tempPrompt" == $'\e' ]]; then
+                # == ESCAPE pressed ==
+                break
+            fi            
+        done
+        if [[ "$i" -ne 1 ]] && [[ "$_tempPrompt" == $'\x0a' ]]; then
+            /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q
+        fi
+        if [[ "$i" -ne 1 ]] && [[ "$_tempPrompt" == $'\e' ]]; then
+                echo ''
+                echo " FOS halted, powering down..."
+                sleep 3
+                [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+                killall framebuffer-vncserver
+                [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
+        fi        
+        if [[ "$i" -eq 1 ]] || [[ "$_tempPrompt" == ' ' ]]; then # Si TIMEOUT ou Spacebar pressé
+                # ICI, je lance le process FOG.
+                #
+                # Je ne quitte normalement JAMAIS cette condition sauf : 
+                #  - Si le fichier /tmp/fog_error.log existe (ce qui indique une erreur fatale de FOG)
+                #  - Si la mode programmée est *"reg"* (permets de descendre l'image sur le poste SANS devoir redémarrer)
+                #
+                # Configure le nom de l'ordinateur (dans FOS)
+                clear
+                ConfigCompName
+                case $isdebug in
+                    [Yy][Ee][Ss]|[Yy])
+                        [[ -r "/tmp/trigger.execute_fog" ]] && . /tmp/trigger.execute_fog
+                        fog.debug
+                        ;;
+                    *)
+                        [[ -r "/tmp/trigger.execute_fog" ]] && . /tmp/trigger.execute_fog
+                        fog
+                        ;;
+                esac
+
+                FLAG_noReboot=0
+                if [[ -n "$mode" ]]; then # A tester, mais ça a l'air de puer dla gueule (NOTE : *reg* ne PEUT PAS être programmée depuis l'interface web)
+                    if [[ "$mode" == *"reg"* ]] && [[ -z "$type" ]]; then
+                        FLAG_noReboot=1
+                    fi
+                fi
+                if [[ -r "/tmp/fos_error.log" ]]; then
+                    FLAG_noReboot=1
+                else
+                    # On fait FOG (et il n'a pas planté), je supprimes les fichiers de variables
+                    [[ -r /tmp/hinfo.txt ]] && rm /tmp/hinfo.txt
+                    [[ -r /tmp/hinfo_foguefi.txt ]] && rm /tmp/hinfo_foguefi.txt
+                fi
+                if [[ "$FLAG_noReboot" -eq 0 ]]; then
+                    # IT'S THE FINAL COUNT DOWN !!! 
+                    # Je reboot *OU* arrête le poste ici
+                    case $isdebug in
+                        [Yy][Ee][Ss]|[Yy])
+                            echo 'Welcome to debug shell'
+                            echo 'Type "exit" to return to fos-manager, reboot -f to reboot, poweroff -f to shutdown.'
+                            /bin/bash
+                            ;;
+                        *)
+                            [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+                            killall framebuffer-vncserver
+                            [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
+                            ;;
+                    esac
+                else
+                    echo "JE NE REBOOT PAS CAR FLAG_noReboot= $FLAG_noReboot"
+                    echo "mode=$mode type=$type"
+                    sleep 20
+                fi
+        fi
+    else
+        # ICI, je dois traîter les demandes réalisés au travers du menu GRUB (et appeler bashconsole conformément)
+
+        if [[ -n "${menutype}" ]]; then # Si un item du menu a été sélectionné....
+            ConfigCompName              # ...configure le bon nom du poste
+            case $menutype in
+                memtester)
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '5 Run Memtester'
+                    menutype="999_NOTDOTUSE"
+                    ;;
+                down)
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '4 Deploy Image'
+                    menutype="999_NOTDOTUSE"
+                    ;;
+                askmc)
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '6 Join Multicast session'
+                    menutype="999_NOTDOTUSE"
+                    ;;
+                unreg)
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '7 Quick host deletion'
+                    menutype="999_NOTDOTUSE"
+                    ;;
+                approvehost)
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '9 Approve current host'
+                    menutype="999_NOTDOTUSE"
+                    ;;
+                updatekey)
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '8 Update product key'
+                    menutype="999_NOTDOTUSE"
+                    ;;
+                *)
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q 
+                    ;;
+            esac    
+        else
+            /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q 
+        fi
+    fi
+
+    if [[ -r "/tmp/fos_error.log" ]]; then
+        # FOS a crashé, je dois traîter cette condition
+        # vvv - Ajout d'un trigger pour collecter l'erreur automatiquement
+        [[ -r "/tmp/trigger.error_collection" ]] && . /tmp/trigger.error_collection
+        if [[ "$restart_FOS" -eq 0 ]]; then
+            _colBG=41;_colFG=97
+            if [[ -z $isdebug ]]; then
+                echo -e "\033[${_colFG};${_colBG}m██████████████████████████████████████████████████████████████████████████████\033[0m"
+                echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
+                echo -e "\033[${_colFG};${_colBG}m█                      Computer will reboot in 1 minute                      █\033[0m"
+                echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
+                echo -e "\033[${_colFG};${_colBG}m██████████████████████████████████████████████████████████████████████████████\033[0m"
+                echo ""
+                #usleep 60000000
+                IFS=''
+                for i in {60..1}
+                do
+                    read -p "$i..." -r -s -N 1 -t 1 _tempPrompt
+                    if [[ "$_tempPrompt" == ' ' ]]; then
+                        i=1
+                        echo ""
+                        echo -e "\033[${_colFG};${_colBG}m FOS Halted. Press CTRL+ALT+DEL to reboot (or CTRL+ALT+F2 to access advanced menu).\033[0m"
+                        # Au cas où, redémarre le poste au bout de 2 heures
+                        sleep 7200
+                    fi
+                done
+                # !! Redémarre QUOI qu'il arrives !!
+                [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+                killall framebuffer-vncserver
+                [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
+            else
+                debugPause
+                echo -e "\033[${_colFG};${_colBG}m FOS Halted. Press CTRL+ALT+DEL to reboot (or CTRL+ALT+F2 to access advanced menu).\033[0m"
+                # Au cas où, redémarre le poste au bout de 2 heures
+                sleep 7200
+                # !! Redémarre QUOI qu'il arrives !!
+                [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+                killall framebuffer-vncserver
+                [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
+            fi
+        fi
+        echo "=> Relaunch FOS in 30 secondes (try remaining:$restart_FOS)"
+        sleep 30
+        restart_FOS=$((restart_FOS-1))
+    fi
 done
 

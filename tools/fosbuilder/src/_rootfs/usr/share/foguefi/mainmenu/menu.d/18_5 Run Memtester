@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# NOTE : foguefi "source" automatiquement fog/lib/funcs.sh
+. /usr/share/foguefi/funcs.sh
+PROCESS_Memtest
+
+do_exit
+
+exit 123

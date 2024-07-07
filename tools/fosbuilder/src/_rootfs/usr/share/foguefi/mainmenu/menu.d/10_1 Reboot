@@ -1,0 +1,7 @@
+#!/bin/bash
+
+. /usr/share/foguefi/funcs.sh
+
+do_exit
+
+exit 123
