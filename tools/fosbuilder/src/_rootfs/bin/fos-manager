@@ -281,6 +281,11 @@ do
         # FOS a crashé, je dois traîter cette condition
         # vvv - Ajout d'un trigger pour collecter l'erreur automatiquement
         [[ -r "/tmp/trigger.error_collection" ]] && . /tmp/trigger.error_collection
+
+        # Rotate error logs, in a lazy way (because the file /tmp/fos_error.log is used as a flag to detect FOG fatal error)
+        [[ -r "/tmp/fos_error.log.2" ]] && mv "/tmp/fos_error.log.2" "/tmp/fos_error.log.3"
+        [[ -r "/tmp/fos_error.log.1" ]] && mv "/tmp/fos_error.log.1" "/tmp/fos_error.log.2"
+        [[ -r "/tmp/fos_error.log" ]] && mv "/tmp/fos_error.log" "/tmp/fos_error.log.1"
         if [[ "$restart_FOS" -eq 0 ]]; then
             _colBG=41;_colFG=97
             if [[ -z $isdebug ]]; then
