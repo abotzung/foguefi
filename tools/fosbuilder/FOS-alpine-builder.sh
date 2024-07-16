@@ -683,14 +683,14 @@ EOF
     rm -rf /root/packages
 EOF
   eend 'Done' "$C_GREEN"
-  eenter 'Compile framebuffer-vncserver'
-    _ERRMSG='FATAL: Compilation of framebuffer-vncserver failed'
-    alpine_exec "$(get_basedir_buildtool)" 'root' <<-EOF
-    cd /sources/src/framebuffer-vncserver
-    abuild -F -r
-    find /root/packages -name '*.apk' -exec cp "{}" /sources/apkout/  \;
-    rm -rf /root/packages
-EOF
+#  eenter 'Compile framebuffer-vncserver'
+#    _ERRMSG='FATAL: Compilation of framebuffer-vncserver failed'
+#    alpine_exec "$(get_basedir_buildtool)" 'root' <<-EOF
+#    cd /sources/src/framebuffer-vncserver
+#    abuild -F -r
+#    find /root/packages -name '*.apk' -exec cp "{}" /sources/apkout/  \;
+#    rm -rf /root/packages
+#EOF
   eend 'Done' "$C_GREEN"
   eenter 'Unmount buildtool'
     umount_devproc "$(get_basedir_buildtool)"
@@ -782,7 +782,6 @@ EOF
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaaa-sysinit-depmod sysinit'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaab-default-network default'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaaa-default-keylayout default'
-    alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaac-default-vncserver default'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaad-default-changerootpwd default'
 
     # Now managed directly by OpenRC/agetty
