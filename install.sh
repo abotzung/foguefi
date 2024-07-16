@@ -109,14 +109,6 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	# DEBUGME DEBUGME - Switched to no delay for dev purposes
 	#sleep 1
 
-	# xserver n'est pas super pertinent pour le moment
-	#echo "=> Copying Xserver ressources..."
-	#cp -rf "$basedir"/src/images/* /images/
-	#chown -R root:root '/images/!xserver'
-	#chmod -R 0755 '/images/!xserver'
-	# DEBUGME DEBUGME - Switched to no delay for dev purposes
-	#sleep 1
-
 	echo "=> Copying FOG PHP files..."
 	cp -rf "$basedir"/src/fog/* "${docroot}${webroot}"
 	chown -R www-data:www-data "${docroot}${webroot}"

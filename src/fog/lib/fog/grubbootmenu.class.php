@@ -433,7 +433,7 @@ class GrubBootMenu extends FOGBase
         $this->_kernel = sprintf(
 			'linux "${bootpath}%s" %s initrd=%s root=/dev/ram0 rw '
             . 'ramdisk_size=%s%sweb=%s consoleblank=0%s rootfstype=ext4%s%s '
-            . '%s nvme_core.default_ps_max_latency_us=0 $grub_parameter $gfxgui', 
+            . '%s nvme_core.default_ps_max_latency_us=0 $grub_parameter', 
             $bzImage,
             $this->_loglevel,
             basename($initrd),
@@ -736,10 +736,6 @@ class GrubBootMenu extends FOGBase
 			'echo "Loading initrd. . ."',
             $this->_initrd,
 			"}",
-			'menuentry "Enable GUI" --class gear --id uefi-firmware {',
-			'set gfxgui=gfxgui=xorg',
-			'echo "Ok"',
-			'}',
             '# bootmeifyoucan',
         );
         $this->_parseMe($Send);
@@ -1803,10 +1799,6 @@ class GrubBootMenu extends FOGBase
 				'echo "Loading initrd. . ."',
 				$this->_initrd,
 				'echo "Booting kernel, please wait."',
-			'}',
-			'menuentry "Enable GUI" --class gear --id enablegfx {',
-			'set gfxgui=gfxgui=xorg',
-			'echo "Ok"',
 			'}',
 			'menuentry "uEFI firmware setup" --class gear --id uefi-firmware {',
 			'echo "Entering uEFI firmware setup..."',
