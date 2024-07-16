@@ -5,19 +5,8 @@
 # @license  http://opensource.org/licenses/gpl-3.0 GPLv3
 # @link     https://fogproject.org
 #
-# Change le mot de passe root par l'adresse MAC
-# format 01:fa:da:de:ca:fe
+# Modifie le mot de passe root par une chaîne aléatoire
+pwd=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 30)
+echo -e "$pwd\n$pwd" | passwd root
+exit 0
 
-. /usr/share/fog/lib/funcs.sh
-
-if [[ -n $changerootpwd ]]; then
-	if [[ $changerootpwd == "yes" ]]; then
-		echo "Changing root password..."
-		mac=$(getMACAddresses)
-		echo -e "$mac\n$mac" | passwd root
-		echo "Done."
-		exit 0
-	else
-		exit 1
-	fi
-fi
