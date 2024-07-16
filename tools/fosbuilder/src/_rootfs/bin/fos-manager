@@ -19,8 +19,11 @@ if [[ "$1" == "--run-as-service" ]]; then
     done
 fi
 
+# -- v -- Source the current FOGUefi+FOG libary. This automatically populate cmdline "variables" (if set)
+. /usr/share/foguefi/funcs.sh
+
 # Mode de "rédemption" ; relance le process FOS dans le cas où celui-ci crash. (présence de /tmp/fos_error.log)
-restart_FOS=2
+[[ -z "$restart_FOS" ]] && restart_FOS=2
 
 # Liste des triggers : 
 # /tmp/trigger.error_collection  ; est exécuté pour remonter les logs d'erreurs vers le serveur FOG
