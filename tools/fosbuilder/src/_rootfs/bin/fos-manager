@@ -150,10 +150,14 @@ do
 
         clear
         displayBanner
-
-        echo -e " * An operation $friendlyOperationName is scheduled now"
-        echo " Press ESC to cancel, SPACE to start now, ENTER to enter plugins menu"
-        echo " * Starting in "
+        if [[ -n "$isdebug" ]]; then
+            IfDebugMode='\033[91;43m (DEBUG Mode activated) \033[0m'
+        else
+            IfDebugMode=''
+        fi
+        echo -e " * An operation $friendlyOperationName $IfDebugMode is scheduled now"
+        echo -e " Press \033[0;97mESC\033[0m to cancel, \033[0;97mSPACE\033[0m to start now, \033[0;97mENTER\033[0m to enter plugins menu"
+        printf " * Starting in "
         for i in {10..1}
         do
             _tempPrompt=''
