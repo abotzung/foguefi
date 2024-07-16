@@ -121,8 +121,6 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	chmod +x "${docroot}${webroot}/service/grub/grub_https.php"
 	# DEBUGME DEBUGME - Switched to no delay for dev purposes
 	#sleep 1
-	  
-	cp -rf ./release/* /tftpboot/
 
     echo "=> Configurying Apache server..."
     FOGApacheFile=$(grep -rnw '/management/other/ca.cert.der$ - ' /etc/apache2 | head -n1 | cut -f1 -d:)
