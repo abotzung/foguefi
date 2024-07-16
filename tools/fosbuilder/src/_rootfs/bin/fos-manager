@@ -151,7 +151,7 @@ do
         clear
         displayBanner
         if [[ -n "$isdebug" ]]; then
-            IfDebugMode='\033[91;43m (DEBUG Mode activated) \033[0m'
+            IfDebugMode='\033[97;45m (DEBUG Mode activated) \033[0m'
         else
             IfDebugMode=''
         fi
