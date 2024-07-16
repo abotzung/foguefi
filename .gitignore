@@ -8,3 +8,4 @@ tools/fosbuilder/temp
 tools/fosbuilder/buildtool
 # -- Ignore internal dev tools 
 tools/fosbuilder/_*.sh
+/_*.sh
