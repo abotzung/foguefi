@@ -89,7 +89,7 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	# ========== Rebuild and patch FOG Stub "FOS" ==========
 	# Rebuild now, because if the patching failed, the installer stop early and dosent leave nasty traces into the system
 	echo "=> The installer now gonna patch FOG Stub. This can takes up to 20 minutes. Please wait..."
-	cd $basedir/tools/fosbuilder
+	cd $basedir/tools/fosbuilder || exit
 	#./BuildFogUEFI.sh
 	./FOS-alpine-builder.sh
 	if [ $? -ne "0" ]; then
