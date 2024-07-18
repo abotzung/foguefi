@@ -783,6 +783,7 @@ EOF
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaab-default-network default'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaaa-default-keylayout default'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaad-default-changerootpwd default'
+    alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaae-default-rebootin24hrs default'
 
     # Now managed directly by OpenRC/agetty
     #alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add zzzz-default-fog default'
