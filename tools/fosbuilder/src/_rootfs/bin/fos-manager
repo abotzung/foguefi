@@ -161,7 +161,11 @@ do
         echo -e " * An operation $friendlyOperationName $IfDebugMode is scheduled now"
         echo -e " Press \033[0;97mESC\033[0m to cancel, \033[0;97mSPACE\033[0m to start now, \033[0;97mENTER\033[0m to enter plugins menu"
         printf " * Starting in "
-        for i in {10..1}
+        
+        #for i in {10..1}
+        [[ -z "$FOS_WaitTimer" ]] && FOS_WaitTimer=10
+        i="$FOS_WaitTimer"
+        while [ "$i" -gt 0 ]
         do
             _tempPrompt=''
             IFS=''
@@ -177,12 +181,16 @@ do
             elif [[ "$_tempPrompt" == $'\e' ]]; then
                 # == ESCAPE pressed ==
                 break
-            fi            
+            elif [[ "$_tempPrompt" == 'd' ]]; then
+                # == 'd' pressed == (Add 60 seconds to the timer)
+                i=$(( $i + 60 ))
+            fi 
+            i=$(( $i - 1 ))
         done
-        if [[ "$i" -ne 1 ]] && [[ "$_tempPrompt" == $'\x0a' ]]; then
+        if [[ "$i" -ne 0 ]] && [[ "$_tempPrompt" == $'\x0a' ]]; then
             /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q
         fi
-        if [[ "$i" -ne 1 ]] && [[ "$_tempPrompt" == $'\e' ]]; then
+        if [[ "$i" -ne 0 ]] && [[ "$_tempPrompt" == $'\e' ]]; then
                 echo ''
                 echo " FOS halted, powering down..."
                 sleep 3
@@ -190,12 +198,12 @@ do
                 killall framebuffer-vncserver
                 [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
         fi        
-        if [[ "$i" -eq 1 ]] || [[ "$_tempPrompt" == ' ' ]]; then # Si TIMEOUT ou Spacebar pressé
+        if [[ "$i" -eq 0 ]] || [[ "$_tempPrompt" == ' ' ]]; then # Si TIMEOUT ou Spacebar pressé
                 # ICI, je lance le process FOG.
                 #
                 # Je ne quitte normalement JAMAIS cette condition sauf : 
                 #  - Si le fichier /tmp/fog_error.log existe (ce qui indique une erreur fatale de FOG)
-                #  - Si la mode programmée est *"reg"* (permets de descendre l'image sur le poste SANS devoir redémarrer)
+                #  - Si le mode programmée est *"reg"* (permets de descendre l'image sur le poste SANS devoir redémarrer)
                 #
                 # Configure le nom de l'ordinateur (dans FOS)
                 clear
