@@ -15,7 +15,7 @@ _compipaddr="$(getIPAddresses)"
 _curtask=""
 
 # Base URL of ttyd
-_remoteurl="http://${_compipaddr}:81"
+_remoteurl="https://${_compipaddr}:81"
 
 _compname="$(hostname -s)"
 
@@ -154,6 +154,9 @@ FINTEXTE
 if [[ "$_NO_STATUS" -eq 0 ]]; then
     echo "FOS:${fosstatus[5]}%"
 else
+    if [[ -z "$friendlyOperationName" ]]; then
+        friendlyOperationName="None"
+    fi
     echo "FOS:${friendlyOperationName}"
 fi
 cat <<FINTEXTE
@@ -223,11 +226,10 @@ else
     echo '</br>'
 fi
 
-echo "<a href='${_remoteurl}?arg=FOSConsole' target="_blank"> <button type='button' class='btn btn-primary'>FOS Console</button></a>"
-echo "<a href='${_remoteurl}?arg=VNCServer' target="_blank"> <button type='button' class='btn btn-primary'>Restart VNC Server</button></a>"
+echo "<a href='${_remoteurl}?arg=2+FOS+screen+console' target="_blank"> <button type='button' class='btn btn-primary'>FOS Console</button></a>"
 
 echo "<p class='bs-component' style='float: right;'>"
-echo "<a href='${_remoteurl}?arg=RebootNow' target="_blank"> <button type='button' class='btn btn-danger'>Force Reboot</button></a>"
+echo "<a href='${_remoteurl}?arg=3+Force+reboot' target="_blank"> <button type='button' class='btn btn-danger'>Force Reboot</button></a>"
 echo '</p>'
 # ------ STATS Systèmes
 echo '<br><br><hr />'

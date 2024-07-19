@@ -16,12 +16,38 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # *** DESTROY AUTH VARIABLES ***
-# -> It is really necesarry ? 
+# -> It is really necessary ? 
 export FOG_islogged=0
 export FOG_username=''
 export FOG_password=''
 
 export DIALOGRC="/root/dialog_jaune"
-/usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/adminmenu/" -q
+if [[ "$_run_as_service" -eq 1 ]]; then
+    # Shows the menu for CTRL+ALT+F2 console
+    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/adminmenu/" -q
+    clear 
+    echo "Bye."
+    exit 0
+fi
 
+# Condition for remote console
+if [[ -z "$1" ]]; then
+    # If no special parameters has been given, just show the menu
+    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/adminmenu/" -q
+    clear
+else
+    # clean "$1" against bad characters (! a-zA-Z0-9)
+    name="$1"
+    if [[ $(echo "$name" | cut -b 3) == '_' ]]; then             # Nettoie le nom si celui-ci commence sous la forme ??_FOOBAR
+        name="$(echo "$name" | cut -b 4-)"
+    fi
+    name="$(echo "$name" | tr -c '[:space:][:alnum:]-' ' ')" # Garde QUE les lettre/chiffres/espaces dans le nom
+    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/adminmenu" -p "$name" -o 1 
+    if [[ $? -ne 0 ]]; then
+        sleep 5
+    else
+        clear
+    fi
+fi
+echo "Bye."
 exit 0
