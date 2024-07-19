@@ -80,7 +80,7 @@ login_fog () {
     # La procédure renvoie 0 si la connexion est réussie, 1 sinon.
     #
     # $FOG_username et $FOG_password sont peuplés si le code de retour = 0, les variables sont vidés sinon.
-    # $FOG_rebranding_banner peut être utilisée pour changer bannière de connexion.
+    # $FOG_rebranding_banner peut être utilisée pour changer la bannière de connexion.
     #
     # Utilise le nouveau "grubbootmenu.class.php"
     # /!\ Here be Dragons /!\
@@ -114,7 +114,6 @@ login_fog () {
             _templogin=''
             _temppass=''
 
-
             ### Mot de passe incorrect : 
             if [[ $DoCurl == *"#!ok"* ]]; then
                 FOG_username=$weblogin
@@ -131,6 +130,7 @@ login_fog () {
             FOG_password=''
             FOG_islogged=0
             
+            old_DIALOGRC="$DIALOGRC"
             export DIALOGRC="/root/dialog_rouge"
             dialog \
                 --backtitle "$FOG_rebranding_software" \
@@ -138,10 +138,9 @@ login_fog () {
                 --timeout $FOG_DialogTimeout \
                 --ok-label "OK" \
                 --msgbox "The username or password is incorrect." 6 47
-            export DIALOGRC=
+            export DIALOGRC="$old_DIALOGRC"
         fi
 
-	export DIALOGRC=''
         BoiteDeDialogue="dialog \
         --backtitle \"$FOG_rebranding_software\" \
         --title \"Login to FOG\" 
@@ -173,7 +172,6 @@ login_fog () {
         webpass="${COMPTE[1]}"
 
         if [[ -z "$webpass" ]]; then
-	    #export DIALOGRC="/root/dialog_jaune"
             BoiteDeDialogue="dialog \
             --backtitle \"$FOG_rebranding_software\" \
             --title \"Login to FOG\" 

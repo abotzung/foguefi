@@ -52,5 +52,5 @@ ConfigCompName
 # ---- Initialise les messages pour DIALOG ("backtitle")
 #       et les configures pour bashconsole.sh
 init_backtitle
-DIALOGRC=''
+
 DIALOG_COMMON_PARAMS='"--default-item" "1 Reboot" "--timeout" "'$FOG_DialogTimeout'" "--backtitle" "'$FOG_rebranding_software'" "--title" "FOS advanced menu"'
