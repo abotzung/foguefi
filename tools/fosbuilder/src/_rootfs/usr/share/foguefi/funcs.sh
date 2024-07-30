@@ -52,6 +52,15 @@
 
 C_UNKNOWN_COMPUTER='***Unknown***'
 
+# By default, override by login_fog
+[[ -z $FOG_islogged ]] && FOG_islogged=0
+
+# By default, FOG isnt relauched (after manreg for example)
+[[ -z $relaunchFog ]] && relaunchFog=0
+
+# Configure a menu timeout delay (in seconds) (default : 900 seconds / 15 minutes)
+[[ -z $FOG_DialogTimeout ]] && FOG_DialogTimeout=900
+
 getIPAddresses() {
     read ipaddr <<< $(/sbin/ip -4 -o addr | awk -F'([ /])+' '/global/ {print $4}' | tr '[:space:]' '|' | sed -e 's/^[|]//g' -e 's/[|]$//g')
     echo $ipaddr
@@ -80,83 +89,104 @@ login_fog () {
     # La procédure renvoie 0 si la connexion est réussie, 1 sinon.
     #
     # $FOG_username et $FOG_password sont peuplés si le code de retour = 0, les variables sont vidés sinon.
+    # Le drapeau $FOG_islogged est peuplée en fonction de la connexion (=1 si REUSSI, sinon 0)
     # $FOG_rebranding_banner peut être utilisée pour changer la bannière de connexion.
     #
-    # Utilise le nouveau "grubbootmenu.class.php"
+    # Utilise "checkcredentials.php" de FOG.
     # /!\ Here be Dragons /!\
     #
     # Alex 03072022 : Un timeout a été ajoutée au popups de connexion, permettant une execution non bloquante en cas de remastérisation "inattendue"
-    init_backtitle
-
+    # Alex 25072024 : Ajout d'un process pour limiter le nombre de tentatives de connexion (par défaut : illimitée)
+        
+    [[ -z "$FOG_login_maxRetries" ]] && FOG_login_maxRetries=0
+	regex_number='^[0-9]+$'
+	if ! [[ "$FOG_login_maxRetries" =~ $regex_number ]] ; then
+	   FOG_login_maxRetries=0
+	fi
+	
+	weblogin=''
+    webpass=''
+    _internal_maxretries=0
+	
     if [[ "$FOG_islogged" == "1" ]]; then # Est-on déjà connecté ? Si oui, pas la peine de refaire une demande d'auth.
         return 0
-    fi
-    weblogin=''
-    webpass=''
-
-    weblogin=$FOG_username
-    webpass=$FOG_password    
+	fi
+	
+    weblogin="$FOG_username"
+    webpass="$FOG_password"
+    _internal_maxretries="$FOG_login_maxRetries"
     FOG_islogged=0 # Drapeau indiquant si l'on est correctement connecté au serveur FOG
     
-    MONuuid=$(dmidecode -s system-uuid)
-    MONuuid=${sysuuid,,}
-    MONmac=$(getMACAddresses)
+    uuid=$(dmidecode -s system-uuid)
+    uuid=${uuid,,}
+    mac=$(getMACAddresses)
     
     while true; do
         if [[ -n "$weblogin" && -n "$webpass" ]]; then
             # Si on a déjà le login et le mot de passe, j'essaye une authentification
             # Cela permettera d'automatiser des connexions via le boot par clé usb ("FOG Self-Service")
-            #DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&username=${weblogin}&password=${webpass}" "${web}service/grub/grub.php" -A '')
-
-            _templogin=$(echo $weblogin | tr -d '\012' | base64)
-            _temppass=$(echo $webpass | tr -d '\012' | base64)
-            DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&username=${_templogin}&password=${_temppass}" "${web}service/checkcredentials.php" -A '')
+	
+			_tempmac=$(echo "$mac" | tr -d '\012' | base64)
+            _templogin=$(echo "$weblogin" | tr -d '\012' | base64)
+            _temppass=$(echo "$webpass" | tr -d '\012' | base64)
+            DoCurl=$(curl -Lks --data "sysuuid=${uuid}&mac=${mac}&username=${_templogin}&password=${_temppass}" "${web}service/checkcredentials.php?op=FOGUEFI_login_fog&mac=${_tempmac}" -A '')
             _templogin=''
             _temppass=''
 
-            ### Mot de passe incorrect : 
+            weblogin=''
+			webpass=''
             if [[ $DoCurl == *"#!ok"* ]]; then
+				### Username/password valid -- Authentication succeed.
                 FOG_username=$weblogin
                 FOG_password=$webpass
-                weblogin=''
-                webpass=''
                 FOG_islogged=1
                 return 0
+            else
+				# Incorrect Username/Password, destroy variables
+				FOG_username=''
+				FOG_password=''
+				FOG_islogged=0
+				old_DIALOGRC="$DIALOGRC"
+				export DIALOGRC="/root/dialog_rouge"
+				dialog \
+					--backtitle "$FOG_rebranding_software" \
+					--title "ERROR" \
+					--timeout "$FOG_DialogTimeout" \
+					--ok-label "OK" \
+					--msgbox "The username or password is incorrect." 6 47
+				export DIALOGRC="$old_DIALOGRC"
+				[[ "$_internal_maxretries" -gt 0 ]] && _internal_maxretries=$(( _internal_maxretries - 1 ))
             fi
-            
-            # Compte incorrect, détruit les variables en mémoire
-
-            FOG_username=''
-            FOG_password=''
-            FOG_islogged=0
-            
-            old_DIALOGRC="$DIALOGRC"
-            export DIALOGRC="/root/dialog_rouge"
-            dialog \
-                --backtitle "$FOG_rebranding_software" \
-                --title "ERROR" \
-                --timeout $FOG_DialogTimeout \
-                --ok-label "OK" \
-                --msgbox "The username or password is incorrect." 6 47
-            export DIALOGRC="$old_DIALOGRC"
         fi
 
-        BoiteDeDialogue="dialog \
-        --backtitle \"$FOG_rebranding_software\" \
-        --title \"Login to FOG\" 
-        --insecure \
-        --timeout $FOG_DialogTimeout \
-        --cancel-label \"Cancel\" \
-        --mixedform \
-        \"Enter your FOG credential :\" 10 53 0 \
-        \"Username: \" 1 1 \"\" 1 20 27 64 0 \
-        \"Password:\"  2 1 \"\" 2 20 27 64 1"
+		if [[ "$_internal_maxretries" -eq 0 ]] && [[ "$FOG_login_maxRetries" -ne 0 ]]; then
+			# Max retries triggered, quit now.
+			return 1
+		fi
+
+		if [[ "$_internal_maxretries" -ne 0 ]]; then
+			_internal_title="Login to FOG ($_internal_maxretries tries left)"
+		else
+			_internal_title="Login to FOG"
+		fi
 
         exec 3>&1
-        selection=$(eval $BoiteDeDialogue 2>&1 1>&3)
-        exit_status=$?
-        exec 3>&-
+        BoiteDeDialogue=$(dialog \
+        --backtitle "$FOG_rebranding_software" \
+        --title "$_internal_title" \
+        --insecure \
+        --timeout "$FOG_DialogTimeout" \
+        --cancel-label "Cancel" \
+        --mixedform \
+        "Enter your FOG credential :" 10 53 0 \
+        "Username: " 1 1 "" 1 20 27 64 0 \
+        "Password:"  2 1 "" 2 20 27 64 1 \
+        2>&1 1>&3)
+		exit_status=$?
+		exec 3>&-
+
         if [[ $exit_status != "0" ]]; then
+            # Here, "Cancel" *or* timeout has been selected
             weblogin=''
             webpass=''
             FOG_username=''
@@ -166,27 +196,27 @@ login_fog () {
         fi
 
         IFS=$'\n'
-        COMPTE=($selection)
+        mapfile -t COMPTE <<< "$BoiteDeDialogue"
 
         weblogin="${COMPTE[0]}"
         webpass="${COMPTE[1]}"
 
         if [[ -z "$webpass" ]]; then
-            BoiteDeDialogue="dialog \
-            --backtitle \"$FOG_rebranding_software\" \
-            --title \"Login to FOG\" 
-            --insecure \
-            --timeout $FOG_DialogTimeout \
-            --cancel-label \"Cancel\" \
-            --mixedform \
-            \"Enter your password :\" 10 53 0 \
-            \"Password:\"  1 1 \"\" 1 20 27 64 1"
-
-            exec 3>&1
-            selection=$(eval $BoiteDeDialogue 2>&1 1>&3)
-            exit_status=$?
-            exec 3>&-
+			exec 3>&1
+			BoiteDeDialogue=$(dialog \
+				--backtitle "$FOG_rebranding_software" \
+				--title "$_internal_title" \
+				--insecure \
+				--timeout "$FOG_DialogTimeout" \
+				--cancel-label "Cancel" \
+				--mixedform \
+				"Enter your password :" 10 53 0 \
+				"Password:"  1 1 "" 1 20 27 64 1 \
+			2>&1 1>&3)
+			exit_status=$?
+			exec 3>&-
             if [[ $exit_status != "0" ]]; then
+                # Here, "Cancel" *or* timeout has been selected
                 weblogin=''
                 webpass=''
                 FOG_username=''
@@ -196,8 +226,7 @@ login_fog () {
             fi
 
             IFS=$'\n'
-            COMPTE=($selection)
-
+            mapfile -t COMPTE <<< "$BoiteDeDialogue"
             webpass="${COMPTE[0]}"
         fi
     done
@@ -656,17 +685,18 @@ PROCESS_Memtest() {
       avail_mem_MB="$mem_size"
     else
       avail_mem_MB="$(LC_ALL=C free -m | grep -i "^Mem:" | awk -F" " '{print $NF}')"
+      avail_mem_MB=$(( avail_mem_MB - 16 )) # Keep 16 MiB for Linux kernel
     fi
     run_cmd="memtester ${avail_mem_MB}M $memtest_testrounds"
     # P A T C H - Diable OOM_KILLER (!!DANGER!!)
     echo 2 > /proc/sys/vm/overcommit_memory
     echo "Run: $run_cmd"
-    eval $run_cmd
+    eval "$run_cmd"
     rc=$?
     if [ "$rc" -eq 1 ]; then
       echo "Everything works properly about the memory in this system."
       # Un délai est ajoutée pour rebooter en cas de réussite.
-      read -t $FOG_DialogTimeout -p "Press [enter] to reboot . . . "
+      read -t "$FOG_DialogTimeout" -p "Press [enter] to reboot . . . "
       return 0
     fi
     displayBanner
@@ -727,7 +757,7 @@ PROCESS_XOrg() {
         # -> Le script est présent, je fait quelques calculs de sécurité...
 
         # Récupère la taille totale du dossier
-        Xfoldersize_MB=$(du -m '/images/!xserver/' | awk '{print $1'})
+        Xfoldersize_MB=$(du -m '/images/!xserver/' | awk '{print $1}')
         # Mémoire nécessaire = 
         #                       Taille dossier SQUASHFS                   (Car on copie le fichier en RAM)
         #                       + (Taille dossier SQUASHFS * 2)           (Espace "cache" pour l'unionFS ; squashfs décompressé ; environ 2x-4x)
@@ -1201,11 +1231,5 @@ ConfigCompName() {
     echo "FOGclientIPaddr=\"$(getIPAddresses)\"" >> /tmp/menu.sh
     chmod +x /tmp/menu.sh
 }
-# Si la variable n'est pas initialisée, le reste du script peut crasher (TODO : nettoyer le script pour que cela n'arrive pas)
-FOG_islogged=0
-# On ne relance pas FOG à la fin de la tâche.
-relaunchFog=0
-# Configure le temps (en secondes) avant le timeout d'un élément du menu (défaut : 900 secondes / 15 minutes)
-[[ -z $FOG_DialogTimeout ]] && FOG_DialogTimeout=900
-[[ -n $keymap ]] && loadkeys $keymap
+
 

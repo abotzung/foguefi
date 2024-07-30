@@ -19,16 +19,30 @@ if [[ "$1" == "--run-as-service" ]]; then
     done
 fi
 
+# Add a trigger point to replace entire fos-manager
+if [[ -r "/tmp/exec.fos-manager" ]]; then
+    . /tmp/exec.fos-manager
+    exit 0
+fi
+
+
 # -- v -- Source the current FOGUefi+FOG libary. This automatically populate cmdline "variables" (if set)
 . /usr/share/foguefi/funcs.sh
 
 # Mode de "rédemption" ; relance le process FOS dans le cas où celui-ci crash. (présence de /tmp/fos_error.log)
 [[ -z "$restart_FOS" ]] && restart_FOS=2
+regex_number='^[0-9]+$'
+if ! [[ "$restart_FOS" =~ $regex_number ]] ; then
+   restart_FOS=2
+fi
+
 
 # Liste des triggers : 
-# /tmp/trigger.error_collection  ; est exécuté pour remonter les logs d'erreurs vers le serveur FOG
-# /tmp/trigger.fos_error         ; est exécuté au moment d'un erreur générée par FOG
-# /tmp/trigger.fos_warning       ; est exécuté au moment d'une attention particulière générée par FOG
+# /tmp/trigger.error_collection     ; est exécuté pour remonter les logs d'erreurs vers le serveur FOG
+# /tmp/trigger.fos_error            ; est exécuté au moment d'un erreur générée par FOG
+# /tmp/trigger.fos_warning          ; est exécuté au moment d'une attention particulière générée par FOG
+# /tmp/trigger.menutype_unknownitem ; est exécuté SI un argument "menutype=..." a été passé dans GRUB ET QUE cet argument n'existe pas dans la liste des tâches présentes dans fog-manager
+# /tmp/exec.fos-manager             ; Remplace /bin/fos-manager si présent
 
 # Fonctionnalités ajoutés : 
 # Lors d'un crash "ERROR"; pendant le délai de 60 secondes, pressez ' ' (espace) pour stopper le décompte et permettre un débug (pendant 2 heures)
@@ -46,6 +60,10 @@ do
     # -- v -- Source the current FOGUefi+FOG libary. This automatically populate cmdline "variables" (if set)
     . /usr/share/foguefi/funcs.sh
 
+    # -- v -- Drapeau interne utilisée pour compter le nombre d'essais de connexion à Fog (en mode interruption de tâche)
+    #         (à ajouter APRES la source FOGUefi)
+    INTERNAL_LoginCounter=0
+
     # -- v -- Start mdadm in case of mdraid flag
     if [[ $mdraid == true ]]; then
         mdadm --auto-detect
@@ -56,11 +74,11 @@ do
     # -- v -- Always verify if we must execute a task/mode, unless the variable 'osid' is populated.
     #         (also variables are also populated by FOG/lib/funcs.sh)
     if [[ -z $osid ]]; then
-        LEuuid=$(dmidecode -s system-uuid)
-        LEuuid=${LEuuid,,}
-        LeMAC=$(getMACAddresses)
+        uuid=$(dmidecode -s system-uuid)
+        uuid=${uuid,,}
+        mac=$(getMACAddresses)
 
-        curl -Lks -o /tmp/hinfo.txt --data "sysuuid=${LEuuid}&mac=$LeMAC" "${web}service/hostinfo.php" -A ''
+        curl -Lks -o /tmp/hinfo.txt --data "sysuuid=${uuid}&mac=$mac" "${web}service/hostinfo.php" -A ''
         
         if [[ -f /tmp/hinfo.txt ]]; then
             dummy=$(cat /tmp/hinfo.txt | grep export)
@@ -76,7 +94,7 @@ do
     #
     #  xxx       -               -              no 
     #   -         xxx          -                YES (local tasking) 
-    #   -        -           xxx                non
+    #   -        -           xxx                no
     #  xxx       -           xxx                YES (server task or scheduled)
     #  xxx       xxx         xxx                YES (server task or special scheduled tasking)
     #
@@ -164,17 +182,42 @@ do
         
         #for i in {10..1}
         [[ -z "$FOS_WaitTimer" ]] && FOS_WaitTimer=10
+        regex_number='^[0-9]+$'
+        if ! [[ "$FOS_WaitTimer" =~ $regex_number ]] ; then
+            FOS_WaitTimer=10
+        fi
+        #[[ -z "$INTERNAL_LoginCounter" ]] && INTERNAL_LoginCounter=0
         i="$FOS_WaitTimer"
+        INTERNAL_BlockEnterLoop=0
         while [ "$i" -gt 0 ]
         do
             _tempPrompt=''
             IFS=''
             read -p "$i..." -r -s -N 1 -t 1 _tempPrompt
-            #[[ ! -z "$_tempPrompt" ]] && break
             # https://stackoverflow.com/questions/2612274/bash-shell-scripting-detect-the-enter-key
             if [[ "$_tempPrompt" == $'\x0a' ]]; then
                 # == ENTER pressed ==
-                break
+                if [[ "$INTERNAL_BlockEnterLoop" -eq 0 ]]; then
+                    OLDFOG_DialogTimeout="$FOG_DialogTimeout"
+                    FOG_DialogTimeout=10 # FORCE timer to 10 seconds
+                    FOG_login_maxRetries=3 # MAX 3 login tries
+                        login_fog
+                        retCode="$?"
+                    FOG_login_maxRetries=0
+                    FOG_DialogTimeout="$OLDFOG_DialogTimeout"
+                    if [[ $retCode -ne 0 ]]; then
+                        # No auth / failed authentication ? BYE BYE !
+                        _tempPrompt=''
+                        INTERNAL_BlockEnterLoop=1
+                    else
+                        # *** DESTROY AUTH VARIABLES ***
+                        export FOG_islogged=0
+                        export FOG_username=''
+                        export FOG_password=''
+                        INTERNAL_BlockEnterLoop=0
+                        break
+                    fi
+                fi
             elif [[ "$_tempPrompt" == ' ' ]]; then
                 # == Spacebar pressed ==
                 break 
@@ -247,10 +290,6 @@ do
                             [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
                             ;;
                     esac
-                else
-                    echo "JE NE REBOOT PAS CAR FLAG_noReboot= $FLAG_noReboot"
-                    echo "mode=$mode type=$type"
-                    sleep 20
                 fi
         fi
     else
@@ -261,32 +300,31 @@ do
             case $menutype in
                 memtester)
                     /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '5 Run Memtester'
-                    menutype="999_NOTDOTUSE"
                     ;;
                 down)
                     /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '4 Deploy Image'
-                    menutype="999_NOTDOTUSE"
                     ;;
                 askmc)
                     /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '6 Join Multicast session'
-                    menutype="999_NOTDOTUSE"
                     ;;
                 unreg)
                     /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '7 Quick host deletion'
-                    menutype="999_NOTDOTUSE"
                     ;;
                 approvehost)
                     /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '9 Approve current host'
-                    menutype="999_NOTDOTUSE"
                     ;;
                 updatekey)
                     /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '8 Update product key'
-                    menutype="999_NOTDOTUSE"
                     ;;
                 *)
-                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q 
+                    if [[ -r "/tmp/trigger.menutype_unknownitem" ]]; then
+                        . /tmp/trigger.menutype_unknownitem
+                    else
+                        /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q 
+                    fi
                     ;;
-            esac    
+            esac
+            menutype="999_NOTDOTUSE"    
         else
             /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q 
         fi
@@ -298,6 +336,7 @@ do
         [[ -r "/tmp/trigger.error_collection" ]] && . /tmp/trigger.error_collection
 
         # Rotate error logs, in a lazy way (because the file /tmp/fos_error.log is used as a flag to detect FOG fatal error)
+        [[ -r "/tmp/fos_error.log.3" ]] && rm "/tmp/fos_error.log.3"
         [[ -r "/tmp/fos_error.log.2" ]] && mv "/tmp/fos_error.log.2" "/tmp/fos_error.log.3"
         [[ -r "/tmp/fos_error.log.1" ]] && mv "/tmp/fos_error.log.1" "/tmp/fos_error.log.2"
         [[ -r "/tmp/fos_error.log" ]] && mv "/tmp/fos_error.log" "/tmp/fos_error.log.1"
