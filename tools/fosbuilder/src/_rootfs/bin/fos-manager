@@ -172,11 +172,11 @@ do
         clear
         displayBanner
         if [[ -n "$isdebug" ]]; then
-            IfDebugMode='\033[97;45m (DEBUG Mode activated) \033[0m'
+            IfDebugMode='\033[97;45m (DEBUG Mode activated) \033[0m '
         else
-            IfDebugMode=''
+            IfDebugMode=' '
         fi
-        echo -e " * An operation $friendlyOperationName $IfDebugMode is scheduled now"
+        echo -e " * An operation $friendlyOperationName ${IfDebugMode}is scheduled now"
 
         # Trigger for replacing ESC key operation
         if [[ -r "/tmp/exec.key-escape-task" ]]; then
