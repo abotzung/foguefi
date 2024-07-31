@@ -176,7 +176,7 @@ do
         else
             IfDebugMode=' '
         fi
-        echo -e " * An operation $friendlyOperationName ${IfDebugMode}is scheduled now"
+        echo -e " * An operation $friendlyOperationName ${IfDebugMode}on $(hostname -s) is scheduled now"
 
         # Trigger for replacing ESC key operation
         if [[ -r "/tmp/exec.key-escape-task" ]]; then
