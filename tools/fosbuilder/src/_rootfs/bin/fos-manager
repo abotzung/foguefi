@@ -25,7 +25,6 @@ if [[ -r "/tmp/exec.fos-manager" ]]; then
     exit 0
 fi
 
-
 # -- v -- Source the current FOGUefi+FOG libary. This automatically populate cmdline "variables" (if set)
 . /usr/share/foguefi/funcs.sh
 
@@ -36,13 +35,20 @@ if ! [[ "$restart_FOS" =~ $regex_number ]] ; then
    restart_FOS=2
 fi
 
-
 # Liste des triggers : 
 # /tmp/trigger.error_collection     ; est exécuté pour remonter les logs d'erreurs vers le serveur FOG
 # /tmp/trigger.fos_error            ; est exécuté au moment d'un erreur générée par FOG
 # /tmp/trigger.fos_warning          ; est exécuté au moment d'une attention particulière générée par FOG
 # /tmp/trigger.menutype_unknownitem ; est exécuté SI un argument "menutype=..." a été passé dans GRUB ET QUE cet argument n'existe pas dans la liste des tâches présentes dans fog-manager
+# /tmp/trigger.execute_fog          ; est exécuté JUSTE AVANT le lancement de "fog" ou "fog.debug"
+# /tmp/trigger.remove-countdown     ; Si ce fichier existe, le compteur est désactivé, et FOG démarre immédiatement
+# /tmp/trigger.exit_fos             ; est exécuté JUSTE AVANT le redémarrage OU l'arrêt du client
+
 # /tmp/exec.fos-manager             ; Remplace /bin/fos-manager si présent
+
+# /tmp/exec.key-escape-task         ; \
+# /tmp/exec.key-enter-task          ;  > Remplace la tâche de la touche pressée par le script. La seconde ligne du fichier représente le nom de la tâche dans le message du compte à rebours.
+# /tmp/exec.key-space-task          ; /
 
 # Fonctionnalités ajoutés : 
 # Lors d'un crash "ERROR"; pendant le délai de 60 secondes, pressez ' ' (espace) pour stopper le décompte et permettre un débug (pendant 2 heures)
@@ -59,10 +65,6 @@ do
 
     # -- v -- Source the current FOGUefi+FOG libary. This automatically populate cmdline "variables" (if set)
     . /usr/share/foguefi/funcs.sh
-
-    # -- v -- Drapeau interne utilisée pour compter le nombre d'essais de connexion à Fog (en mode interruption de tâche)
-    #         (à ajouter APRES la source FOGUefi)
-    INTERNAL_LoginCounter=0
 
     # -- v -- Start mdadm in case of mdraid flag
     if [[ $mdraid == true ]]; then
@@ -88,8 +90,8 @@ do
         [[ -f /tmp/hinfo.txt ]] && . /tmp/hinfo.txt
     fi
 
-    # -- v -- Determine if a task is scheduled for us
-    # TABLE DE VERITEE :
+    # -- v -- Determine if a task is scheduled for us :
+    # TRUTH TABLE :
     # $type        $mode        $osid            $FLAG
     #
     #  xxx       -               -              no 
@@ -100,17 +102,15 @@ do
     #
     FLAG_scheduledTask=0
     if [[ -n $type && -n $osid ]]; then
-        # Si $type est définie {up/down} && que $osid est définie (peut importe $mode), il y a quelque-chose à faire
-        #echo "Tache programmée (SERVEUR/PROGRAMMEE)"
-        FLAG_scheduledTask=1 # 1 = Tache programmée
+        # If $type is defined {up/down} && $osid is also defined, a task is scheduled
+        FLAG_scheduledTask=1 # 1 = Task scheduled (SERVER)
     fi
     if [[ -z $type && -n $mode ]]; then
-        # Si $mode est définie {clamav, manreg...} && que $type n'est pas définie, il y a un mode à traîter
-        #echo "Tache programmée (MODE)"
-        FLAG_scheduledTask=2 # 2 = Mode programmée
+        # If $mode is defined {clamav, manreg...} && $type is not defined, a "mode" is scheduled
+        FLAG_scheduledTask=2 # 2 = Mode scheduled
     fi
     if [[ "$FLAG_scheduledTask" -ne 0 ]]; then
-        # Task/Mode detected, show a way to interrupt a Fog process
+        # Task/Mode detected, select the friendly name associated with the task/mode
         friendlyOperationName=''
         case "$FLAG_scheduledTask" in
             1) # up/down
@@ -177,78 +177,134 @@ do
             IfDebugMode=''
         fi
         echo -e " * An operation $friendlyOperationName $IfDebugMode is scheduled now"
-        echo -e " Press \033[0;97mESC\033[0m to cancel, \033[0;97mSPACE\033[0m to start now, \033[0;97mENTER\033[0m to enter plugins menu"
-        printf " * Starting in "
-        
-        #for i in {10..1}
-        [[ -z "$FOS_WaitTimer" ]] && FOS_WaitTimer=10
-        regex_number='^[0-9]+$'
-        if ! [[ "$FOS_WaitTimer" =~ $regex_number ]] ; then
-            FOS_WaitTimer=10
+
+        # Trigger for replacing ESC key operation
+        if [[ -r "/tmp/exec.key-escape-task" ]]; then
+            key_ESCAPE_operation=$(sed -n -e '2{p;q}' "/tmp/exec.key-escape-task")
+            key_ESCAPE_operation=${key_ESCAPE_operation//"#"?/} 
+        else
+            key_ESCAPE_operation="\033[0;97mESC\033[0m to cancel,"
+        fi        
+        # Trigger for replacing SPACEBAR key operation
+        if [[ -r "/tmp/exec.key-space-task" ]]; then
+            key_SPACE_operation=$(sed -n -e '2{p;q}' "/tmp/exec.key-space-task")
+            key_SPACE_operation=${key_SPACE_operation//"#"?/} 
+        else
+            key_SPACE_operation="\033[0;97mSPACE\033[0m to start now,"
+        fi    
+        # Trigger for replacing ENTER key operation
+        if [[ -r "/tmp/exec.key-enter-task" ]]; then
+            key_ENTER_operation=$(sed -n -e '2{p;q}' "/tmp/exec.key-enter-task")
+            key_ENTER_operation=${key_ENTER_operation//"#"?/} 
+        else
+            key_ENTER_operation="\033[0;97mENTER\033[0m to enter plugins menu."
+        fi    
+
+        if [[ -n "$key_ESCAPE_operation" ]] || [[ -n "$key_SPACE_operation" ]] || [[ -n "$key_ENTER_operation" ]]; then   
+            echo -e " Press $key_ESCAPE_operation $key_SPACE_operation $key_ENTER_operation"
         fi
-        #[[ -z "$INTERNAL_LoginCounter" ]] && INTERNAL_LoginCounter=0
-        i="$FOS_WaitTimer"
-        INTERNAL_BlockEnterLoop=0
-        while [ "$i" -gt 0 ]
-        do
-            _tempPrompt=''
-            IFS=''
-            read -p "$i..." -r -s -N 1 -t 1 _tempPrompt
-            # https://stackoverflow.com/questions/2612274/bash-shell-scripting-detect-the-enter-key
-            if [[ "$_tempPrompt" == $'\x0a' ]]; then
-                # == ENTER pressed ==
-                if [[ "$INTERNAL_BlockEnterLoop" -eq 0 ]]; then
-                    OLDFOG_DialogTimeout="$FOG_DialogTimeout"
-                    FOG_DialogTimeout=10 # FORCE timer to 10 seconds
-                    FOG_login_maxRetries=3 # MAX 3 login tries
-                        login_fog
-                        retCode="$?"
-                    FOG_login_maxRetries=0
-                    FOG_DialogTimeout="$OLDFOG_DialogTimeout"
-                    if [[ $retCode -ne 0 ]]; then
-                        # No auth / failed authentication ? BYE BYE !
-                        _tempPrompt=''
-                        INTERNAL_BlockEnterLoop=1
+
+        if [[ ! -r "/tmp/trigger.remove-countdown" ]]; then
+            printf " * Starting in "
+            
+            
+            [[ -z "$FOS_WaitTimer" ]] && FOS_WaitTimer=10
+            regex_number='^[0-9]+$'
+            if ! [[ "$FOS_WaitTimer" =~ $regex_number ]] ; then
+                FOS_WaitTimer=10
+            fi
+            
+            i="$FOS_WaitTimer"
+            INTERNAL_BlockEnterLoop=0
+            while [ "$i" -gt 0 ]
+            do
+                _tempPrompt=''
+                IFS=''
+                read -p "$i..." -r -s -N 1 -t 1 _tempPrompt
+                # https://stackoverflow.com/questions/2612274/bash-shell-scripting-detect-the-enter-key
+                if [[ "$_tempPrompt" == $'\x0a' ]]; then
+                    # == ENTER pressed ==
+                    if [[ ! -r "/tmp/exec.key-enter-task" ]]; then
+                        if [[ "$INTERNAL_BlockEnterLoop" -eq 0 ]]; then
+                            OLDFOG_DialogTimeout="$FOG_DialogTimeout"
+                            FOG_DialogTimeout=10 # FORCE timer to 10 seconds
+                            FOG_login_maxRetries=3 # MAX 3 login tries 
+                                login_fog
+                                retCode="$?"
+                            # shellcheck disable=SC2034
+                            FOG_login_maxRetries=0
+                            FOG_DialogTimeout="$OLDFOG_DialogTimeout"
+                            if [[ $retCode -ne 0 ]]; then
+                                # No auth / failed authentication ? BYE BYE !
+                                _tempPrompt=''
+                                INTERNAL_BlockEnterLoop=1
+                            else
+                                # *** DESTROY AUTH VARIABLES ***
+                                export FOG_islogged=0
+                                export FOG_username=''
+                                export FOG_password=''
+                                INTERNAL_BlockEnterLoop=0
+                                break
+                            fi
+                        fi
                     else
-                        # *** DESTROY AUTH VARIABLES ***
-                        export FOG_islogged=0
-                        export FOG_username=''
-                        export FOG_password=''
-                        INTERNAL_BlockEnterLoop=0
-                        break
+                        break # trigger.key-enter-task present, quit the loop
                     fi
-                fi
-            elif [[ "$_tempPrompt" == ' ' ]]; then
-                # == Spacebar pressed ==
-                break 
-            elif [[ "$_tempPrompt" == $'\e' ]]; then
-                # == ESCAPE pressed ==
-                break
-            elif [[ "$_tempPrompt" == 'd' ]]; then
-                # == 'd' pressed == (Add 60 seconds to the timer)
-                i=$(( $i + 60 ))
-            fi 
-            i=$(( $i - 1 ))
-        done
-        if [[ "$i" -ne 0 ]] && [[ "$_tempPrompt" == $'\x0a' ]]; then
-            /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q
+                elif [[ "$_tempPrompt" == ' ' ]]; then
+                    # == Spacebar pressed ==
+                    break 
+                elif [[ "$_tempPrompt" == $'\e' ]]; then
+                    # == ESCAPE pressed ==
+                    break
+                elif [[ "$_tempPrompt" == 'd' ]]; then
+                    # == 'd' pressed == (Add 60 seconds to the timer)
+                    i=$(( i + 60 ))
+                fi 
+                i=$(( i - 1 ))
+            done
+        else
+            # No countdown requested, simulate a spacebar press instead
+            echo ""
+            sleep 1
+            _tempPrompt=' '
+            i="0"
         fi
+
+        # Actions for ENTER key
+        if [[ "$i" -ne 0 ]] && [[ "$_tempPrompt" == $'\x0a' ]]; then
+            if [[ -r "/tmp/exec.key-enter-task" ]]; then
+                . /tmp/exec.key-enter-task
+            else
+                /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q
+            fi
+        fi
+
+        # Actions for ESC key
         if [[ "$i" -ne 0 ]] && [[ "$_tempPrompt" == $'\e' ]]; then
+            if [[ -r "/tmp/exec.key-escape-task" ]]; then
+                . /tmp/exec.key-escape-task
+            else
                 echo ''
                 echo " FOS halted, powering down..."
                 sleep 3
                 [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
-                killall framebuffer-vncserver
                 [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
-        fi        
-        if [[ "$i" -eq 0 ]] || [[ "$_tempPrompt" == ' ' ]]; then # Si TIMEOUT ou Spacebar pressé
-                # ICI, je lance le process FOG.
+            fi
+        fi
+
+        # Actions for SPACEBAR key OR timeout 
+        if [[ "$i" -eq 0 ]] || [[ "$_tempPrompt" == ' ' ]]; then # If TIMEOUT or Spacebar pressed
+            if [[ -r "/tmp/exec.key-space-task" ]]; then
+                # The trigger replaces all FOG process
+                . /tmp/exec.key-space-task
+            else        
+                # HERE, i'm launching the FOG process.
                 #
-                # Je ne quitte normalement JAMAIS cette condition sauf : 
-                #  - Si le fichier /tmp/fog_error.log existe (ce qui indique une erreur fatale de FOG)
-                #  - Si le mode programmée est *"reg"* (permets de descendre l'image sur le poste SANS devoir redémarrer)
+                # I NEVER quit this function, unless : 
+                #  - If the file /tmp/fog_error.log exist (this file indicate a fatal error in FOG client)
+                #  - If the scheduled mode is *"reg"* (permits to relauch FOG afer a manreg, WITHOUT restarting the entire computer)
                 #
-                # Configure le nom de l'ordinateur (dans FOS)
+                # Configure computername (in Linux FOS)
                 clear
                 ConfigCompName
                 case $isdebug in
@@ -286,11 +342,11 @@ do
                             ;;
                         *)
                             [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
-                            killall framebuffer-vncserver
                             [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
                             ;;
                     esac
                 fi
+            fi
         fi
     else
         # ICI, je dois traîter les demandes réalisés au travers du menu GRUB (et appeler bashconsole conformément)
@@ -358,22 +414,18 @@ do
                         i=1
                         echo ""
                         echo -e "\033[${_colFG};${_colBG}m FOS Halted. Press CTRL+ALT+DEL to reboot (or CTRL+ALT+F2 to access advanced menu).\033[0m"
-                        # Au cas où, redémarre le poste au bout de 2 heures
-                        sleep 7200
+                        # Au cas où, redémarre le poste au bout de 1 heure
+                        sleep 3600
                     fi
                 done
-                # !! Redémarre QUOI qu'il arrives !!
                 [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
-                killall framebuffer-vncserver
                 [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
             else
                 debugPause
                 echo -e "\033[${_colFG};${_colBG}m FOS Halted. Press CTRL+ALT+DEL to reboot (or CTRL+ALT+F2 to access advanced menu).\033[0m"
-                # Au cas où, redémarre le poste au bout de 2 heures
-                sleep 7200
-                # !! Redémarre QUOI qu'il arrives !!
+                # In case of, restart in 1 hour
+                sleep 3600
                 [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
-                killall framebuffer-vncserver
                 [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
             fi
         fi
