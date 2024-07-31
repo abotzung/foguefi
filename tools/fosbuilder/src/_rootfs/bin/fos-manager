@@ -200,11 +200,10 @@ do
             key_ENTER_operation="\033[0;97mENTER\033[0m to enter plugins menu."
         fi    
 
-        if [[ -n "$key_ESCAPE_operation" ]] || [[ -n "$key_SPACE_operation" ]] || [[ -n "$key_ENTER_operation" ]]; then   
-            echo -e " Press $key_ESCAPE_operation $key_SPACE_operation $key_ENTER_operation"
-        fi
-
         if [[ ! -r "/tmp/trigger.remove-countdown" ]]; then
+            if [[ -n "$key_ESCAPE_operation" ]] || [[ -n "$key_SPACE_operation" ]] || [[ -n "$key_ENTER_operation" ]]; then   
+                echo -e " Press $key_ESCAPE_operation $key_SPACE_operation $key_ENTER_operation"
+            fi
             printf " * Starting in "
             
             
