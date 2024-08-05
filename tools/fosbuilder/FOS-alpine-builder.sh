@@ -691,7 +691,7 @@ EOF
 #    find /root/packages -name '*.apk' -exec cp "{}" /sources/apkout/  \;
 #    rm -rf /root/packages
 #EOF
-  eend 'Done' "$C_GREEN"
+#  eend 'Done' "$C_GREEN"
   eenter 'Unmount buildtool'
     umount_devproc "$(get_basedir_buildtool)"
   eend 'Done' "$C_GREEN"
@@ -784,6 +784,7 @@ EOF
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaaa-default-keylayout default'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaad-default-changerootpwd default'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaae-default-rebootin24hrs default'
+    alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaaf-default-FOS-InstallAPK default'
 
     # Now managed directly by OpenRC/agetty
     #alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add zzzz-default-fog default'
@@ -791,7 +792,7 @@ EOF
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add ttyd default'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add mini_httpd default'
 
-    alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add sshd boot' # Init SSH at boot
+    #alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add sshd boot' # Init SSH at boot
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add udev sysinit' # Init udev at sysinit
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add udev-trigger sysinit' # Init udev-trigger at sysinit
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add udev-settle sysinit' # Init udev-settle at sysinit
