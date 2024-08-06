@@ -50,7 +50,10 @@
 # Source les fonctions internes de FOG
 . /usr/share/fog/lib/funcs.sh
 
+# Constante : Nom de l'ordinateur si inconnu
 C_UNKNOWN_COMPUTER='***Unknown***'
+# Constante : Version de l'API de FOGUefi
+C_FOGUEFI_APIver='20240806'
 
 # By default, override by login_fog
 [[ -z $FOG_islogged ]] && FOG_islogged=0
@@ -305,24 +308,60 @@ verifTaches () {
 
 fog_compName () {
     ######## Donne le nom du pc à l'aide du serveur FOG ####
-    # Renvoie $C_UNKNOWN_COMPUTER si l'ordinateur n'existe pas
-    MONuuid=$(dmidecode -s system-uuid)
-    MONuuid=${sysuuid,,}
-    MONmac=$(getMACAddresses)
-    DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac" "${web}service/hostname.php" -A '')
+    # Renvoie $C_UNKNOWN_COMPUTER si l'ordinateur n'existe pas, "REGPENDING:<NomClient>" si le client n'est pas encore approuvée.
+    uuid=$(dmidecode -s system-uuid)
+    uuid=${sysuuid,,}
+    mac=$(getMACAddresses)
+    DoCurl=$(curl -Lks --data "sysuuid=${uuid}&mac=$mac&getFOGClientName=1" "${web}service/grub/grub.php" -A '')
 
-    if [[ $DoCurl == *"#!ok="* ]]; then
-        IFS=$'\n'
-        for line in $DoCurl; do
-            if [[ $line == *"#!ok="* ]]; then
-                line2=$(echo "$line" | sed -r 's,\t,,g')
-                line2=${line2/=/|}
-                FOGcomputerName=$(awk -F\|  '{print $2}' <<< $line2)
-            fi
-        done
+    result=$(echo -e "$DoCurl" | cut -f1 -d'|')
+    FOGcomputerName=$(echo -e "$DoCurl" | cut -f2 -d'|')
+
+    if [[ "$result" == "#!ok" ]]; then
+        FOGcomputerName="$(echo -e "$DoCurl" | cut -f2 -d'|')"
+    elif [[ "$result" == "#!ok" ]]; then
+        FOGcomputerName="REGPENDING:$(echo -e "$DoCurl" | cut -f2 -d'|')"
     else
         FOGcomputerName="$C_UNKNOWN_COMPUTER"
     fi
+    result=""; DoCurl=""
+}
+
+check_APIversion () {
+    # Test if grubbootmenu.class.php API is okay to use.
+    uuid=$(dmidecode -s system-uuid)
+    uuid=${sysuuid,,}
+    mac=$(getMACAddresses)
+    DoCurl=$(curl -Lks --data "sysuuid=${uuid}&mac=$mac&getFOGUefiAPIVersion=1" "${web}service/grub/grub.php" -A '')
+
+    result=$(echo -e "$DoCurl" | cut -f1 -d'|')
+    SYST_FOGUEFI_APIver='19700101'
+
+    if [[ "$result" == "#!ok" ]]; then
+        SYST_FOGUEFI_APIver="$(echo -e "$DoCurl" | cut -f2 -d'|')"
+    fi
+    result=""; DoCurl=""
+    if [[ "$SYST_FOGUEFI_APIver" == "$C_FOGUEFI_APIver" ]]; then
+        return 0
+    fi
+    
+    [[ -r "/tmp/trigger.foguefi_api_error" ]] && . /tmp/trigger.foguefi_api_error
+
+    clear
+    displayBanner
+    _colBG=41;_colFG=97
+    echo -e "\033[${_colFG};${_colBG}m██████████████████████████████████████████████████████████████████████████████\033[0m"
+    echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
+    echo -e "\033[${_colFG};${_colBG}m█     FATAL ERROR : The FOGUefi FOG API is incompatible with this client.    █\033[0m"
+    echo -e "\033[${_colFG};${_colBG}m█             (FOGUefi API version:${SYST_FOGUEFI_APIver} Client API:${C_FOGUEFI_APIver})             █\033[0m"
+    echo -e "\033[${_colFG};${_colBG}m█                 You must update your FOGUefi installation.                 █\033[0m"
+    echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
+    echo -e "\033[${_colFG};${_colBG}m█                      Computer will reboot in 1 minute                      █\033[0m"
+    echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
+    echo -e "\033[${_colFG};${_colBG}m██████████████████████████████████████████████████████████████████████████████\033[0m"
+    echo ""
+    sleep 60
+    reboot -f # Reboot car impossible de continuer correctement
 }
 
 do_fog () {

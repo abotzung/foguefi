@@ -519,6 +519,24 @@ class GrubBootMenu extends FOGBase
             false,
             ''
         );
+        if (isset($_REQUEST['getFOGUefiAPIVersion'])) {
+            // Alex 20240806 Get FOGUefi API version
+            echo '#!ok|'.'20240806';
+            exit;
+        }          
+        if (isset($_REQUEST['getFOGClientName'])) {
+            // Alex 20240805 Get FOG Client name (if registered), else '***Unknown***'
+            if (self::$Host->isValid()) {
+                if (self::$Host->get('pending')) {
+                    echo '#!reg_pending|'.self::$Host->get('name');
+                } else {
+                    echo '#!ok|'.self::$Host->get('name');
+                }
+            } else {
+                echo '#!unknown|';
+            }
+            exit;
+        }   
         if (isset($_REQUEST['username']) && isset($_REQUEST['password'])) {
             $tmpUser = self::attemptLogin(
                 $_REQUEST['username'],
@@ -1679,7 +1697,7 @@ class GrubBootMenu extends FOGBase
 
         $Send['header'] = array(
                 'set default=boothardisk',
-            );
+        );
 
         $reg_string = 'NOT registered!';
         if (self::$Host->isValid()) {

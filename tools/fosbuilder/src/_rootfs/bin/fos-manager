@@ -28,6 +28,9 @@ fi
 # -- v -- Source the current FOGUefi+FOG libary. This automatically populate cmdline "variables" (if set)
 . /usr/share/foguefi/funcs.sh
 
+# -- v -- Test if the "grubbootmenu.class.php/FOGUefi" API is compatible with this version of FOGUefi (crash if not)
+check_APIversion
+
 # Mode de "rédemption" ; relance le process FOS dans le cas où celui-ci crash. (présence de /tmp/fos_error.log)
 [[ -z "$restart_FOS" ]] && restart_FOS=2
 regex_number='^[0-9]+$'
@@ -43,6 +46,7 @@ fi
 # /tmp/trigger.execute_fog          ; est exécuté JUSTE AVANT le lancement de "fog" ou "fog.debug"
 # /tmp/trigger.remove-countdown     ; Si ce fichier existe, le compteur est désactivé, et FOG démarre immédiatement
 # /tmp/trigger.exit_fos             ; est exécuté JUSTE AVANT le redémarrage OU l'arrêt du client
+# /tmp/trigger.foguefi_api_error    ; est exécuté si l'API est pas correcte.
 
 # /tmp/exec.fos-manager             ; Remplace /bin/fos-manager si présent
 
