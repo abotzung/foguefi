@@ -64,6 +64,10 @@ C_FOGUEFI_APIver='20240806'
 # Configure a menu timeout delay (in seconds) (default : 900 seconds / 15 minutes)
 [[ -z $FOG_DialogTimeout ]] && FOG_DialogTimeout=900
 
+sysuuid=$(dmidecode -s system-uuid)
+sysuuid=${sysuuid,,}
+mac=$(getMACAddresses)
+
 getIPAddresses() {
     read ipaddr <<< $(/sbin/ip -4 -o addr | awk -F'([ /])+' '/global/ {print $4}' | tr '[:space:]' '|' | sed -e 's/^[|]//g' -e 's/[|]$//g')
     echo $ipaddr
@@ -102,6 +106,7 @@ login_fog () {
     # Alex 25072024 : Ajout d'un process pour limiter le nombre de tentatives de connexion (par défaut : illimitée)
         
     [[ -z "$FOG_login_maxRetries" ]] && FOG_login_maxRetries=0
+    [[ -z "$FOG_DialogTimeout" ]] && FOG_DialogTimeout=20
 	regex_number='^[0-9]+$'
 	if ! [[ "$FOG_login_maxRetries" =~ $regex_number ]] ; then
 	   FOG_login_maxRetries=0
@@ -132,16 +137,16 @@ login_fog () {
 			_tempmac=$(echo "$mac" | tr -d '\012' | base64)
             _templogin=$(echo "$weblogin" | tr -d '\012' | base64)
             _temppass=$(echo "$webpass" | tr -d '\012' | base64)
-            DoCurl=$(curl -Lks --data "sysuuid=${uuid}&mac=${mac}&username=${_templogin}&password=${_temppass}" "${web}service/checkcredentials.php?op=FOGUEFI_login_fog&mac=${_tempmac}" -A '')
+            DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=${mac}&username=${_templogin}&password=${_temppass}" "${web}service/checkcredentials.php?op=FOGUEFI_login_fog&mac=${_tempmac}" -A '')
             _templogin=''
             _temppass=''
 
-            weblogin=''
-			webpass=''
             if [[ $DoCurl == *"#!ok"* ]]; then
 				### Username/password valid -- Authentication succeed.
                 FOG_username=$weblogin
                 FOG_password=$webpass
+                weblogin=''
+			    webpass=''
                 FOG_islogged=1
                 return 0
             else
@@ -174,7 +179,7 @@ login_fog () {
 		fi
 
         exec 3>&1
-        BoiteDeDialogue=$(dialog \
+        BoiteDeDialogue=$(timeout --foreground "$FOG_DialogTimeout" dialog \
         --backtitle "$FOG_rebranding_software" \
         --title "$_internal_title" \
         --insecure \
@@ -206,7 +211,7 @@ login_fog () {
 
         if [[ -z "$webpass" ]]; then
 			exec 3>&1
-			BoiteDeDialogue=$(dialog \
+			BoiteDeDialogue=$(timeout --foreground "$FOG_DialogTimeout" dialog \
 				--backtitle "$FOG_rebranding_software" \
 				--title "$_internal_title" \
 				--insecure \
@@ -254,22 +259,19 @@ verifTaches () {
     # Vérifie toujours les tâches en cours, sauf si la variable osid est déjà peuplée.
     #if [[ $boottype == usb && ! -z $web ]]; then
     if [[ -z $osid ]]; then
-        MONuuid=$(dmidecode -s system-uuid)
-        MONuuid=${sysuuid,,}
-        MONmac=$(getMACAddresses)
-        sysuuid='' # Patch pour l'export qui échoue dans certaines conditions
-        mac=''
-        export sysuuid="$MONuuid"
-        #sysuuid=$MONuuid
-        export mac="$MONmac"
-        #mac=$MONmac
-        curl -Lks -o /tmp/hinfo.txt --data "sysuuid=${MONuuid}&mac=$MONmac" "${web}service/hostinfo.php" -A ''
-        
-        # Valide le fichier hinfo
-        dummy=$(cat /tmp/hinfo.txt | grep export)
-        if [[ "$dummy" != *"export"* ]]; then
-            rm /tmp/hinfo.txt
+
+
+        base64mac=$(echo $mac | base64)
+        token=$(curl -Lks --data "mac=$base64mac" "${web}status/hostgetkey.php")
+        curl -Lks -o /tmp/hinfo.txt --data "sysuuid=${sysuuid}&mac=$mac&hosttoken=${token}" "${web}service/hostinfo.php" -A ''
+
+        # Validates hinfo.txt
+        if [[ -f /tmp/hinfo.txt ]]; then
+            dummy=$(cat /tmp/hinfo.txt | grep export)
+            # Not a export ? Delete the file
+            [[ "$dummy" != *"export"* ]] && rm /tmp/hinfo.txt
         fi
+
         # Valide le fichier krnl
         if [[ -f /tmp/hinfo_foguefi.txt ]]; then
             dummy=$(cat /tmp/hinfo_foguefi.txt | grep export)
@@ -294,12 +296,14 @@ verifTaches () {
     if [[ -n $type && -n $osid ]]; then
         # Si $type est définie {up/down} && que $osid est définie (peut importe $mode), il y a quelque-chose à faire
         #echo "Tache programmée (SERVEUR/PROGRAMMEE)"
+        FLAG_scheduledTask=1
         return 1 # 1 = Tache programmée
     fi
     
     if [[ -z $type && -n $mode ]]; then
         # Si $mode est définie {clamav, manreg...} && que $type n'est pas définie, il y a un mode à traîter
         #echo "Tache programmée (MODE)"
+        FLAG_scheduledTask=2
         return 1 # 1 = Tache programmée
     fi
     
@@ -312,7 +316,7 @@ fog_compName () {
     uuid=$(dmidecode -s system-uuid)
     uuid=${sysuuid,,}
     mac=$(getMACAddresses)
-    DoCurl=$(curl -Lks --data "sysuuid=${uuid}&mac=$mac&getFOGClientName=1" "${web}service/grub/grub.php" -A '')
+    DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac&getFOGClientName=1" "${web}service/grub/grub.php" -A '')
 
     result=$(echo -e "$DoCurl" | cut -f1 -d'|')
     FOGcomputerName=$(echo -e "$DoCurl" | cut -f2 -d'|')
@@ -332,7 +336,7 @@ check_APIversion () {
     uuid=$(dmidecode -s system-uuid)
     uuid=${sysuuid,,}
     mac=$(getMACAddresses)
-    DoCurl=$(curl -Lks --data "sysuuid=${uuid}&mac=$mac&getFOGUefiAPIVersion=1" "${web}service/grub/grub.php" -A '')
+    DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac&getFOGUefiAPIVersion=1" "${web}service/grub/grub.php" -A '')
 
     result=$(echo -e "$DoCurl" | cut -f1 -d'|')
     SYST_FOGUEFI_APIver='19700101'
@@ -440,20 +444,9 @@ do_fog () {
 
 do_exit() {
     # Quitte le FOG Stub / debug
-    if [[ -n $isdebug ]]; then
-        clear
-        displayBanner
-        echo 'Type "exit" to return to fos-manager, reboot -f to reboot, poweroff -f to shutdown.'
-        if [[ -r "/tmp/DEZDEDFE" ]]; then
-            echo -e "\033[${_colFG};${_colBG}m FOS has crashed, type cat /tmp/ZEKDFOEKFE to read the error log.\033[0m"
-        fi
+    
+    # FIXME : Fonction encore utilisée ? 
 
-        bash
-    else
-        [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
-        killall framebuffer-vncserver
-        [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
-    fi
     exit 123
 }
 
@@ -483,7 +476,7 @@ PROCESS_SelectDownloadImage() {
         
         # On a déjà une image dans la ligne de commande. 
         #  je vérifie qu'elle est valide. Si non, j'efface la variable.
-        DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&qihost=1&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')
+        DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac&qihost=1&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')
         
         i=0
         export DIALOGRC=
@@ -493,7 +486,7 @@ PROCESS_SelectDownloadImage() {
                 --backtitle "$FOG_rebranding_software" \
                 --title "ERROR" \
                 --timeout $FOG_DialogTimeout \
-                --msgbox "Host is not valid, host has no image assigned, or there are no images defined on the server.", 6 45
+                --msgbox "Host is not valid, host has no image assigned, or there are no images defined on the server. (1)" 10 45
             export DIALOGRC=
             return 1
         fi
@@ -546,7 +539,7 @@ PROCESS_SelectDownloadImage() {
         # ~~~~~~~~~~~~~~~~~~ LISTING DES IMAGES DU SERVEUR ~~~~~~~~~~~~~~~~
         # 1. Je récupère la liste des images du serveurs (via grub.php)
         
-        DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&qihost=1&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')
+        DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac&qihost=1&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')
         
         i=0
         if [[ "$DoCurl" != *'***!IMAGE-HEADER!***'* ]]; then
@@ -555,7 +548,7 @@ PROCESS_SelectDownloadImage() {
                 --backtitle "$FOG_rebranding_software" \
                 --title "ERROR" \
                 --timeout $FOG_DialogTimeout \
-                --msgbox "Host is not valid, host has no image assigned, or there are no images defined on the server.'," 6 45
+                --msgbox "Host is not valid, host has no image assigned, or there are no images defined on the server. (2)" 10 45
             export DIALOGRC=
             return 1
         fi
@@ -640,7 +633,7 @@ PROCESS_SelectDownloadImage() {
     # ICI, on est censé avoir l'ID de l'image que l'on va remastériser. On lance une programmation pour avoir une "false-tasking".
     # Phase 3 ; programmation de l'image
 
-    DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&qihost=1&imageID=$image_id&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')
+    DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac&qihost=1&imageID=$image_id&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')
 
     verifTaches
     verifTachesFLAG=$?
@@ -931,7 +924,7 @@ PROCESS_JointMulticast() {
         # Réalise la query. Le fonctionnement est similaire à la programmation d'une image.
         # Dans le cas d'un PC non enregistrée ; on reçoit la tâche sous la forme d'une entrée de démarrage GRUB.
         # Dans le cas d'un PC enregistrée, la fonction verifTaches le verra (type && osid peuplée).
-        DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&sessname=${FOG_multicastSessionName}&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')    
+        DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac&sessname=${FOG_multicastSessionName}&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')    
         
         verifTaches
         verifTachesFLAG=$?
@@ -1046,7 +1039,7 @@ PROCESS_DeleteCurrentHost() {
             # TODO FIXME : Faille de sécuritée : Il est possible de crafter une requête dans le navigateur web pour 
             #              détruire une machine du serveur FOG /!\. Confirmée avec la version DEV du 01082022
 
-            DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&delconf=1&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')    
+            DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac&delconf=1&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')    
         
             if [[ "$DoCurl" == *"OKSUCCESS"* ]]; then
                 init_backtitle        # Le nom du poste à changée. La backtitle possiblement possible. Je mets à jout tout ça.
@@ -1125,7 +1118,7 @@ PROCESS_ApproveCurrentHost() {
         if [[ "$exit_status" == "0" ]]; then
             # J'approuve la machine
 
-            DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&aprvconf=1&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')    
+            DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac&aprvconf=1&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')    
         
             if [[ "$DoCurl" == *"OKSUCCESS"* ]]; then
                 init_backtitle        # Le nom du poste à changée. La backtitle possiblement possible. Je mets à jout tout ça.
@@ -1214,7 +1207,7 @@ PROCESS_UpdateKey() {
         # Dans le cas d'un PC non enregistrée ; on reçoit la tâche sous la forme d'une entrée de démarrage GRUB.
         # Dans le cas d'un PC enregistrée, la fonction verifTaches le verra (type && osid peuplée).
 
-        DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac&key=${FOG_prodkey}&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')    
+        DoCurl=$(curl -Lks --data "sysuuid=${sysuuid}&mac=$mac&key=${FOG_prodkey}&username=${FOG_username}&password=${FOG_password}" "${web}service/grub/grub.php" -A '')    
         
         #verifTaches
         #verifTachesFLAG=$?

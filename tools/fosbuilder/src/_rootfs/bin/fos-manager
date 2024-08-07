@@ -79,20 +79,23 @@ do
 
     # -- v -- Always verify if we must execute a task/mode, unless the variable 'osid' is populated.
     #         (also variables are also populated by FOG/lib/funcs.sh)
-    if [[ -z $osid ]]; then
-        uuid=$(dmidecode -s system-uuid)
-        uuid=${uuid,,}
-        mac=$(getMACAddresses)
 
-        curl -Lks -o /tmp/hinfo.txt --data "sysuuid=${uuid}&mac=$mac" "${web}service/hostinfo.php" -A ''
-        
-        if [[ -f /tmp/hinfo.txt ]]; then
-            dummy=$(cat /tmp/hinfo.txt | grep export)
-            # Not a export ? Delete the file
-            [[ "$dummy" != *"export"* ]] && rm /tmp/hinfo.txt
-        fi
-        [[ -f /tmp/hinfo.txt ]] && . /tmp/hinfo.txt
-    fi
+    verifTaches
+
+    #if [[ -z $osid ]]; then
+    #    uuid=$(dmidecode -s system-uuid)
+    #    uuid=${uuid,,}
+    #    mac=$(getMACAddresses)
+
+    #    curl -Lks -o /tmp/hinfo.txt --data "sysuuid=${uuid}&mac=$mac" "${web}service/hostinfo.php" -A ''
+    #    
+    #    if [[ -f /tmp/hinfo.txt ]]; then
+    #        dummy=$(cat /tmp/hinfo.txt | grep export)
+    #        # Not a export ? Delete the file
+    #        [[ "$dummy" != *"export"* ]] && rm /tmp/hinfo.txt
+    #    fi
+    #    [[ -f /tmp/hinfo.txt ]] && . /tmp/hinfo.txt
+    #fi
 
     # -- v -- Determine if a task is scheduled for us :
     # TRUTH TABLE :
@@ -137,34 +140,34 @@ do
             2) # autoreg/manreg/clamav/memtest/...
                 case "$mode" in
                     sysinfo)
-                        friendlyOperationName='basic system information'
+                        friendlyOperationName='\033[0;97mbasic system information\033[0m'
                         ;;
                     clamav)
-                        friendlyOperationName='virus scan' # Deprecated by the FOG Team
+                        friendlyOperationName='\033[0;97mvirus scan\033[0m' # Deprecated by the FOG Team
                         ;;
                     onlydebug)
-                        friendlyOperationName='debug'
+                        friendlyOperationName='\033[0;97mdebug\033[0m'
                         ;;
                     checkdisk)
-                        friendlyOperationName='test disk'
+                        friendlyOperationName='\033[0;97mtest disk\033[0m'
                         ;;
                     badblocks)
-                        friendlyOperationName='disk surface test'
+                        friendlyOperationName='\033[0;97mdisk surface test\033[0m'
                         ;;
                     photorec)
-                        friendlyOperationName='recover files'
+                        friendlyOperationName='\033[0;97mrecover files\033[0m'
                         ;;
                     winpassreset)
-                        friendlyOperationName='\033[97;41m reset Windows passwords \033[0m'
+                        friendlyOperationName='\033[97;41m reset Windows passwords\033[0m'
                         ;;
                     wipe)
-                        friendlyOperationName='\033[97;41m wipe hard disk \033[0m'
+                        friendlyOperationName='\033[97;41m wipe hard disk\033[0m'
                         ;;                                                
                     autoreg)
-                        friendlyOperationName='automatic inventory and registration'
+                        friendlyOperationName='\033[0;97mautomatic inventory and registration\033[0m'
                         ;;
                     manreg)
-                        friendlyOperationName='manual inventory and registration'
+                        friendlyOperationName='\033[0;97mmanual inventory and registration\033[0m'
                         ;;
                     *)
                         friendlyOperationName="??? $mode"
@@ -176,9 +179,9 @@ do
         clear
         displayBanner
         if [[ -n "$isdebug" ]]; then
-            IfDebugMode='\033[97;45m (DEBUG Mode activated) \033[0m '
+            IfDebugMode='\033[97;45m(DEBUG Mode activated) \033[0m '
         else
-            IfDebugMode=' '
+            IfDebugMode=''
         fi
         echo -e " * An operation $friendlyOperationName ${IfDebugMode}on $(hostname -s) is scheduled now"
 
