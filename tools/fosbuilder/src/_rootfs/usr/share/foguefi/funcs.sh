@@ -100,11 +100,13 @@ login_fog () {
     # $FOG_rebranding_banner peut être utilisée pour changer la bannière de connexion.
     #
     # Utilise "checkcredentials.php" de FOG.
-    # /!\ Here be Dragons /!\
+    # /!\ Heres be Dragons /!\
     #
     # Alex 03072022 : Un timeout a été ajoutée au popups de connexion, permettant une execution non bloquante en cas de remastérisation "inattendue"
     # Alex 25072024 : Ajout d'un process pour limiter le nombre de tentatives de connexion (par défaut : illimitée)
-        
+    
+    clear
+
     [[ -z "$FOG_login_maxRetries" ]] && FOG_login_maxRetries=0
     [[ -z "$FOG_DialogTimeout" ]] && FOG_DialogTimeout=20
 	regex_number='^[0-9]+$'
@@ -148,6 +150,7 @@ login_fog () {
                 weblogin=''
 			    webpass=''
                 FOG_islogged=1
+                clear
                 return 0
             else
 				# Incorrect Username/Password, destroy variables
@@ -169,6 +172,7 @@ login_fog () {
 
 		if [[ "$_internal_maxretries" -eq 0 ]] && [[ "$FOG_login_maxRetries" -ne 0 ]]; then
 			# Max retries triggered, quit now.
+            clear
 			return 1
 		fi
 
@@ -200,6 +204,7 @@ login_fog () {
             FOG_username=''
             FOG_password=''
             FOG_islogged=0
+            clear
             return 1
         fi
 
@@ -230,6 +235,7 @@ login_fog () {
                 FOG_username=''
                 FOG_password=''
                 FOG_islogged=0
+                clear
                 return 1
             fi
 
@@ -897,15 +903,15 @@ PROCESS_JointMulticast() {
         if [[ -z "$FOG_multicastSessionName" ]]; then
             # La variable n'existe pas ? Je demande le nom de la tâche multicast !
             
-            BoiteDeDialogue="dialog \
+            BoiteDeDialogue="timeout --foreground "$FOG_DialogTimeout" dialog \
             --backtitle \"$FOG_rebranding_software\" \
             --title \"Join multicast session\" 
             --insecure \
-            --timeout $FOG_DialogTimeout \
+            --timeout \"$FOG_DialogTimeout\" \
             --cancel-label \"Cancel\" \
             --mixedform \
             \"Enter multicast session name :\" 10 53 0 \
-            \"name:\"  1 1 \"\" 1 20 27 64 0"
+            \"Session name:\"  1 1 \"\" 1 20 27 64 0"
 
             exec 3>&1
             selection=$(eval $BoiteDeDialogue 2>&1 1>&3)
@@ -938,7 +944,7 @@ PROCESS_JointMulticast() {
                     --title "!!! FATAL INTERNAL ERROR !!!" \
                     --ok-label "Ok" \
                     --timeout $FOG_DialogTimeout \
-                    --msgbox "An error occurred during the programming of the image deployment. I can't continue. -> $DoCurl" 7 47
+                    --msgbox "An error occurred during the programming of the image deployment. FOGUefi cannot continue. -> $DoCurl" 7 47
                 export DIALOGRC=
                 return 0
             fi
@@ -1264,4 +1270,5 @@ ConfigCompName() {
     chmod +x /tmp/menu.sh
 }
 
-
+# init backtitle
+init_backtitle

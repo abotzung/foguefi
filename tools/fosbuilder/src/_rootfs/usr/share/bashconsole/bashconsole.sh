@@ -13,23 +13,23 @@
 #   bashconsole.sh -f /usr/share/foguefi/menu -p "1 Reboot"
 #
 # Options and environment variables:
-#   -f sysbasepath         Specify the base folder bashconsole should use.
-#                          (Default: dirname "$0")
+#   -f sysbasepath            Specify the base folder bashconsole should use.
+#                             (Default: dirname "$0")
 #
-#   -p exec_plugin         If specified, search for the first PLUGIN, and
-#                          launches it. Quit after execution and return the 
-#                          exitlevel provided by the plugin.
+#   -p exec_plugin            If specified, search for the first PLUGIN, and
+#                             launches it. Quit after execution and return the 
+#                             exitlevel provided by the plugin.
 #
-#   -s exec_strictname     Force search with the EXACT PLUGIN name. By default, 
-#                          the display name is used. (Eg: "01_Welcome" vs. "Welcome")
-#                          (ONLY used with option -p) 
+#   -s exec_pluginstrictname  (0/1) Force search with the EXACT PLUGIN name. By default, 
+#                             the display name is used. (Eg: "01_Welcome" vs. "Welcome")
+#                             (ONLY used with option -p) 
 #
-#   -o exec_pluginforce    Force plugin execution (ignore the returnvalue of plugin hook)
-#                          (ONLY used with option -p) 
+#   -o exec_pluginforce       (0/1) Force plugin execution (ignore the returnvalue of plugin hook)
+#                             (ONLY used with option -p)
 #
-#   -q                     When on the main menu, allow to quit bashconsole (default not allowed)
+#   -q                        When the main menu is displayed, allow to quit bashconsole (default: not allowed)
 #
-#   -h                     Display this help.
+#   -h                        Display this help.
 #
 # Each option can be also provided by environment variable. If both option and
 # variable is specified and the option accepts only one argument, then the
@@ -100,6 +100,10 @@ msgbox () {
     exec 3>&-
     rm "$DialogFile"  
 
+    if [[ "$RetCode" == 255 ]]; then
+        exit 124 # Timeout de dialog ; je quitte bashconsole
+    fi
+
     return $RetCode
 }
 
@@ -116,6 +120,10 @@ yesno () {
     RetCode=$?
     exec 3>&-
     rm "$DialogFile"  
+
+    if [[ "$RetCode" == 255 ]]; then
+        exit 124 # Timeout de dialog ; je quitte bashconsole
+    fi
 
     return $RetCode
 }
@@ -247,6 +255,10 @@ affiche_menu() {
         exec 3>&-
         rm "$DialogFile"
 
+        if [[ "$RetCode" == 255 ]]; then
+            exit 124 # Timeout de dialog ; je quitte bashconsole
+        fi
+
         # ICI, je détermine la logique de réponse pour "message"
         if [ -z "${CurFldr//"$menu_dir/"/}" ]; then
             # On est à la racine
@@ -292,16 +304,16 @@ FLAG_rootfolderls changent... !!!
         for f in "$CurFldr/"*; do
             if [ -d "$f" ]; then
                 no_folder=0
-                subMenu_fldr_path+=("$f") # Ajoute le chemin complet du dossier au tableau
+                subMenu_fldr_path+=("$f") # Ajoute le chemin complet du dossier au tableau
                 name=$f
                 name=${name//"$menu_dir/"/}
                 name="$(basename "$name")"
                 name=${name#/}
-                if [[ $(echo "$name" | cut -b 3) == '_' ]]; then             # Nettoie le nom si celui-ci commence sous la forme ??_FOOBAR
+                if [[ $(echo "$name" | cut -b 3) == '_' ]]; then             # Nettoie le nom si celui-ci commence sous la forme ??_FOOBAR
                     name=$(echo "$name" | cut -b 4-)
                 fi
                 name=$(echo "$name" | tr -c '[:space:][:alnum:]\n\r-' ' ')    # Garde QUE les lettre/chiffres/espaces dans le nom
-                subMenu_fldr_name+=("$name") # Ajoute le nom de l'item au tableau
+                subMenu_fldr_name+=("$name") # Ajoute le nom de l'item au tableau
                 if [ -r "$f"/description ]; then
                     subMenu_fldr_desc+=("$(cat "$f"/description)")
                 else
@@ -371,6 +383,9 @@ FLAG_rootfolderls changent... !!!
             RetCode=$?
             exec 3>&-
             rm "$DialogFile"
+            if [[ "$RetCode" == 255 ]]; then
+                exit 124 # Timeout de dialog ; je quitte bashconsole
+            fi
             label2_name="${CurFldr//"$menu_dir/"/}"
             label2_name="$(dirname "$label2_name")"
             if [ "$label2_name" == "." ]; then
@@ -424,6 +439,10 @@ FLAG_rootfolderls changent... !!!
         exec 3>&-
         rm "$DialogFile"
         
+        if [[ "$RetCode" == 255 ]]; then
+            exit 124 # Timeout de dialog ; je quitte bashconsole
+        fi
+
         label2_name=""
         if [ "$RetCode" == 1 ]; then
             # "Back" pressé, on reviens en arrière...

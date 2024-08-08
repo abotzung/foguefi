@@ -1,7 +1,16 @@
 <?php
 /**
- * Boot menu for the fog GRUB pxe system
+ * A (somewhat) portage of GRUB for FOG Server
+ *   (looosely copied form ipxebootmenu.class.php, with on top, some hacks to keep together)
  *
+ * TODO : 
+ *  - Modifies all hardcoded commands to be redirected to the database. (hardcoding values is bad...)
+ *    - The best is to create a separable table, but why not create a pair of key/values into fog.globalSettings database ? (with FOGUEFI_ as key prefixes ?)
+ *  - Clears all functions and process NOT supported by GRUB
+ *  - Adds triggers useable by Fog plugins (to modify the boot process)
+ *  - Create a GUI to modify GRUB parameters directly from FOG Webpage
+ *  - Is GRUB pertinent ? : https://github.com/rhboot/shim-review/issues/319
+ * 
  * PHP Version 5 
  *
  * @category Bootmenu

@@ -1,3 +1,12 @@
+This patch contains files from :
+- The FOG Project <https://fogproject.org/> (FOS, scripts & logos)
+- Clonezilla (C) 2003-2024, NCHC, Taiwan <https://clonezilla.org/> (scripts)
+- Ubuntu (C) 2024 Canonical Ltd. <https://ubuntu.com/> (GNU/Linux signed kernel, shim-signed, grub-efi-arm64-signed)
+- The Alpine Linux Development team <https://www.alpinelinux.org/> (base env)
+- Redo Rescue (C) 2010.2020 Zebradots Software <http://redorescue.com/> (GRUB Theme, heavily modified)
+- Mcder3 <github.com/KaOSx/midna> (icons)
+- Gnome icon pack <https://download.gnome.org/sources/gnome-icon-theme/> (icons) (c) 2002-2008 :
+
 Sorry, this document is only available in French (yet) ! 
 
 ============================================================================

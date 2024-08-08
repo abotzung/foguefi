@@ -70,6 +70,9 @@ do
     # -- v -- Source the current FOGUefi+FOG libary. This automatically populate cmdline "variables" (if set)
     . /usr/share/foguefi/funcs.sh
 
+    # -- v -- Configures the computername
+    ConfigCompName
+
     # -- v -- Start mdadm in case of mdraid flag
     if [[ $mdraid == true ]]; then
         mdadm --auto-detect
@@ -127,7 +130,7 @@ do
                         ;;
                     down)
                         if [[ "$mc" == "yes" ]]; then # Mode multicast
-                            friendlyOperationName='\033[30;42m download image (Multicast)\033[0m'
+                            friendlyOperationName='\033[30;42m download image (Multicast) \033[0m'
                         else
                             friendlyOperationName='\033[30;42m download image \033[0m'
                         fi
@@ -308,11 +311,10 @@ do
                 #
                 # I NEVER quit this function, unless : 
                 #  - If the file /tmp/fog_error.log exist (this file indicate a fatal error in FOG client)
-                #  - If the scheduled mode is *"reg"* (permits to relauch FOG afer a manreg, WITHOUT restarting the entire computer)
+                #  - If the scheduled mode is *"reg"* (permits to relauch FOG afer a manreg, WITHOUT restarting the entire computer)
                 #
                 # Configure computername (in Linux FOS)
                 clear
-                ConfigCompName
                 case $isdebug in
                     [Yy][Ee][Ss]|[Yy])
                         [[ -r "/tmp/trigger.execute_fog" ]] && . /tmp/trigger.execute_fog
@@ -357,38 +359,45 @@ do
     else
         # ICI, je dois traîter les demandes réalisés au travers du menu GRUB (et appeler bashconsole conformément)
 
+        MENU_retval=0
         if [[ -n "${menutype}" ]]; then # Si un item du menu a été sélectionné....
-            ConfigCompName              # ...configure le bon nom du poste
+            
             case $menutype in
                 memtester)
-                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '5 Run Memtester'
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '5 Run Memtester' ; MENU_retval=$?
                     ;;
                 down)
-                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '4 Deploy Image'
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '4 Deploy Image' ; MENU_retval=$?
                     ;;
                 askmc)
-                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '6 Join Multicast session'
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '6 Join Multicast session' ; MENU_retval=$?
                     ;;
                 unreg)
-                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '7 Quick host deletion'
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '7 Quick host deletion' ; MENU_retval=$?
                     ;;
                 approvehost)
-                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '9 Approve current host'
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '9 Approve current host' ; MENU_retval=$?
                     ;;
                 updatekey)
-                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '8 Update product key'
+                    /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -p '8 Update product key' ; MENU_retval=$?
                     ;;
                 *)
                     if [[ -r "/tmp/trigger.menutype_unknownitem" ]]; then
                         . /tmp/trigger.menutype_unknownitem
                     else
-                        /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q 
+                        /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q ; MENU_retval=$?
                     fi
                     ;;
             esac
             menutype="999_NOTDOTUSE"    
         else
-            /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q 
+            /usr/share/bashconsole/bashconsole.sh -f "/usr/share/foguefi/mainmenu" -q ; MENU_retval=$? 
+        fi
+        if [[ "$MENU_retval" == 124 ]]; then
+            # basconsole return exitcode 124 if a timeout has been generated.
+            # By default, a timeout proves the operator is away. In this case, reboot the computer or shut it down accordingly
+            [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+            [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f            
         fi
     fi
 
