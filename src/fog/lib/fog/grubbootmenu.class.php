@@ -482,6 +482,27 @@ class GrubBootMenu extends FOGBase
             $this->_defaultChoice
         );
         $this->_ipxeLog();
+
+        if (isset($_REQUEST['getFOGUefiAPIVersion'])) {
+            // Alex 20240806 Get FOGUefi API version
+            echo '#!ok|'.'20240806';
+            exit;
+        }          
+        if (isset($_REQUEST['getFOGClientName'])) {
+            // Alex 20240805 Get FOG Client name (if registered), else '***Unknown***'
+            if (self::$Host->isValid()) {
+                if (self::$Host->get('pending')) {
+                    echo '#!reg_pending|'.self::$Host->get('name');
+                } else {
+                    echo '#!ok|'.self::$Host->get('name');
+                }
+            } else {
+                echo '#!unknown|';
+            }
+            exit;
+        }   
+
+        // --- v --- HERE, dispatch if a task is scheduled -----
         if (self::$Host->isValid() && self::$Host->get('task')->isValid()) {
 			# PATCH : If a task is programmed, and this task ISNT Snapin related, executes the task. 
 			if ( !self::$Host->get('task')->isSnapinTasking() ) {
@@ -489,6 +510,8 @@ class GrubBootMenu extends FOGBase
 				exit;
 			}
         }
+        // --------- END OF DISPATCH
+
         self::$HookManager->processEvent(
             'FOGUEFI_ALTERNATE_BOOT_CHECKS'
         );
@@ -528,24 +551,7 @@ class GrubBootMenu extends FOGBase
             false,
             ''
         );
-        if (isset($_REQUEST['getFOGUefiAPIVersion'])) {
-            // Alex 20240806 Get FOGUefi API version
-            echo '#!ok|'.'20240806';
-            exit;
-        }          
-        if (isset($_REQUEST['getFOGClientName'])) {
-            // Alex 20240805 Get FOG Client name (if registered), else '***Unknown***'
-            if (self::$Host->isValid()) {
-                if (self::$Host->get('pending')) {
-                    echo '#!reg_pending|'.self::$Host->get('name');
-                } else {
-                    echo '#!ok|'.self::$Host->get('name');
-                }
-            } else {
-                echo '#!unknown|';
-            }
-            exit;
-        }   
+
         if (isset($_REQUEST['username']) && isset($_REQUEST['password'])) {
             $tmpUser = self::attemptLogin(
                 $_REQUEST['username'],
