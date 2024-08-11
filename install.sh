@@ -30,7 +30,7 @@
 #
 #   This script :
 #    - Download *or* compiles a FOS Client 
-#    - Deploy Linux kernel, GRUB and SHIM (latest signed) into /tftpboot
+#    - Deploy Linux kernel, GRUB and SHIM (latest signed) into /tftpboot (provided by Canonical)
 #    - Deploy GrubBootMenu php files (copied into /var/www/?/fog)
 #    - If FOG works on HTTPS, reconfigure Apache2.
 #============================================================================
@@ -79,7 +79,7 @@ echo "   FOG Path : ${docroot}${webroot})"
 echo ''
 echo '   This installer extends the FOG PXE by installing shim, grub, GNU/Linux signed and a custom FOG "FOS" stub'
 echo '   It consists of 2 parts : '
-echo '   - Files required for PXE (shim/GRUB), and FOG Stub patched ("FOGUefi")'
+echo '   - Files required for PXE (shim/GRUB/Linux kernel, all signed by Canonical), and FOG Stub patched ("FOGUefi")'
 echo '   - PHP Files for handling newer menus for GRUB'
 echo ''
 echo ' This patch are free software; the exact distribution terms for each program are described in the individual files.'
