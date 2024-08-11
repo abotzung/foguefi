@@ -1230,7 +1230,7 @@ class GrubBootMenu extends FOGBase
     {
         $Send['nomenu'] = array(
             'set timeout=3 ; set default=boothardisk',
-            'menuentry "Boot from hard disk" --class drive-harddisk --id boothardisk {',
+            'menuentry "Boot from hard disk" --class hdd-o --id boothardisk {',
             'echo "Booting first local disk..."',
             '# Generate boot menu automatically',
             'configfile ${prefix}/boot-local-efi.cfg',
@@ -1634,7 +1634,7 @@ class GrubBootMenu extends FOGBase
             if ($Task->get('typeID') == 4) {
                 $Send['memtest'] = array(
 					'set timeout=3 ; set default=0',
-					'menuentry "Run Memtester" --class gnome-system-monitor --id bootmemtest {',
+					'menuentry "Run Memtester" --class microchip --id bootmemtest {',
 					$this->_kernel . " menutype=memtester",
 					'echo "Loading kernel. . ."',
 					$this->_initrd,
@@ -1725,7 +1725,7 @@ class GrubBootMenu extends FOGBase
 			}
         } else {
 			$Send['menustart'] = array(
-				'menuentry "Host is NOT registered! MAC='.$_REQUEST['mac'].'" --class not-reg info {',
+				'menuentry "Host is NOT registered!" --class not-reg info {',
 				'true',
 				'}',
 				self::getSetting('FOG_QUICKREG_AUTOPOP') ? 'set default=autoreg' : '',
@@ -1733,18 +1733,18 @@ class GrubBootMenu extends FOGBase
 		}
 		
 		$Send["DebutMenuGrub"] = array(	
-			'menuentry "Boot from hard disk" --class drive-harddisk --id boothardisk {',
+			'menuentry "Boot from hard disk" --class hdd-o --id boothardisk {',
 			'echo "Booting first local disk..."',
 			'# Generate boot menu automatically',
 			'configfile ${prefix}/boot-local-efi.cfg',
 			'# If not chainloaded, definitely no uEFI boot loader was found.',
 			'echo "No uEFI boot loader was found!"',
-			'echo " => Restarting in 30 seconds"',
-			'sleep 30',
+			'echo " => Restarting in 5 seconds"',
+			'sleep 5',
 			'reboot',
 			'}',
 
-			'menuentry "Run Memtester" --class gnome-system-monitor --id bootmemtest {',
+			'menuentry "Run Memtester" --class microchip --id bootmemtest {',
 			'echo "Loading kernel. . ."',
 			$this->_kernel . " menutype=memtester",
 			'echo "Loading initrd. . ."',
@@ -1756,7 +1756,7 @@ class GrubBootMenu extends FOGBase
         if (self::$Host->isValid()) {
             if (self::$Host->get('pending')) {
                 $Send["Approval"] = array(
-                'menuentry "Approve This Host" --class fogplus --id approve {',
+                'menuentry "Approve This Host" --class key --id approve {',
                 'echo "Loading kernel. . ."',
                 $this->_kernel . " menutype=approvehost",
                 'echo "Loading initrd. . ."',
@@ -1776,7 +1776,7 @@ class GrubBootMenu extends FOGBase
 				$this->_initrd,
 				'echo "Booting kernel, please wait."',
 				'}',
-				'menuentry "Quick Registration and Inventory" --class fogplus --id autoreg {',
+				'menuentry "Quick Registration and Inventory" --class fog --id autoreg {',
 				'echo "Loading kernel. . ."',
 				$this->_kernel . " mode=autoreg",
 				'echo "Loading initrd. . ."',
@@ -1786,14 +1786,14 @@ class GrubBootMenu extends FOGBase
 				);
 		} else {
 			$Send["MilieuMenuGrub"] = array(	
-				'menuentry "Quick host deletion" --class unreg --id unreg {',
+				'menuentry "Quick host deletion" --class times-solid --id unreg {',
 				'echo "Loading kernel. . ."',
 				$this->_kernel . " menutype=unreg",
 				'echo "Loading initrd. . ."',
 				$this->_initrd,
 				'echo "Booting kernel, please wait."',
 				'}',
-                'menuentry "Update Product Key" --class fogplus --id updatekey {',
+                'menuentry "Update Product Key" --class fog --id updatekey {',
                 'echo "Loading kernel. . ."',
                 $this->_kernel . " menutype=updatekey",
                 'echo "Loading initrd. . ."',
@@ -1813,21 +1813,14 @@ class GrubBootMenu extends FOGBase
 				$this->_initrd,
 				'echo "Booting kernel, please wait."',
 			'}',
-			'menuentry "Join Multicast Session" --class multicast --id joinmulticast {',
+			'menuentry "Join Multicast Session" --class share-alt --id joinmulticast {',
 				'echo "Loading kernel. . ."',
 				$this->_kernel . " menutype=askmc",
 				'echo "Loading initrd. . ."',
 				$this->_initrd,
 				'echo "Booting kernel, please wait."',
 			'}',
-			'menuentry "Client System Information (compatibility)" --class fog --id systeminfo {',
-				'echo "Loading kernel. . ."',
-				$this->_kernel . " mode=sysinfo",
-				'echo "Loading initrd. . ."',
-				$this->_initrd,
-				'echo "Booting kernel, please wait."',
-			'}',
-			'menuentry "uEFI firmware setup" --class gear --id uefi-firmware {',
+			'menuentry "uEFI firmware setup" --class cog-solid --id uefi-firmware {',
 			'echo "Entering uEFI firmware setup..."',
 			'fwsetup',
 			'}',
