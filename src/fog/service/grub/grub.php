@@ -7,7 +7,7 @@
  * @category Boot
  * @package  FOGProject
  * @author   Tom Elliott <tommygunsster@gmail.com>
- * @author   Alexandre Botzung <alexandre.botzung@grandest.fr>
+ * @author   Alexandre Botzung <alexandre@botzung.fr>
  * @license  http://opensource.org/licenses/gpl-3.0 GPLv3
  * @link     https://fogproject.org
  */
@@ -17,7 +17,7 @@
  * @category Boot
  * @package  FOGProject
  * @author   Tom Elliott <tommygunsster@gmail.com>
- * @author   Alexandre Botzung <alexandre.botzung@grandest.fr> 
+ * @author   Alexandre Botzung <alexandre@botzung.fr> 
  * @license  http://opensource.org/licenses/gpl-3.0 GPLv3
  * @link     https://fogproject.org
  */

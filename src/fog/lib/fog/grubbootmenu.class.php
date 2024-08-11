@@ -1,7 +1,7 @@
 <?php
 /**
  * A (somewhat) portage of GRUB for FOG Server
- *   (looosely copied form ipxebootmenu.class.php, with on top, some hacks to keep together)
+ *   (looosely copied form ipxebootmenu.class.php, with on top, some hacks to keep things together (...))
  *
  * TODO : 
  *  - Modifies all hardcoded commands to be redirected to the database. (hardcoding values is bad...)
@@ -16,7 +16,7 @@
  * @category Bootmenu
  * @package  FOGProject
  * @author   Tom Elliott <tommygunsster@gmail.com>
- * @author   Alexandre Botzung <alexandre.botzung@grandest.fr>
+ * @author   Alexandre Botzung <alexandre@botzung.fr>
  * @license  http://opensource.org/licenses/gpl-3.0 GPLv3
  * @link     https://fogproject.org
  */
@@ -26,7 +26,7 @@
  * @category Bootmenu
  * @package  FOGProject
  * @author   Tom Elliott <tommygunsster@gmail.com>
- * @author   Alexandre Botzung <alexandre.botzung@grandest.fr>
+ * @author   Alexandre Botzung <alexandre@botzung.fr>
  * @license  http://opensource.org/licenses/gpl-3.0 GPLv3
  * @link     https://fogproject.org
  */

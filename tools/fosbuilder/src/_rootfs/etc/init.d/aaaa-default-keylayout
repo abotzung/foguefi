@@ -1,6 +1,6 @@
 #!/sbin/openrc-run
 
-# Start FOG ; Alex BOTZUNG
+# Set the keyboard layout ; Alex BOTZUNG
 
 description="Set the correct keyboard layout"
 

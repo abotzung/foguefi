@@ -1,5 +1,5 @@
-# Contributor: Alexandre BOTZUNG <alexandre.botzung@grandest.fr>
-# Maintainer: Alexandre BOTZUNG <alexandre.botzung@grandest.fr>
+# Contributor: Alexandre BOTZUNG <alexandre@botzung.fr>
+# Maintainer: Alexandre BOTZUNG <alexandre@botzung.fr>
 pkgname=framebuffer-vncserver
 pkgver=1
 pkgrel=0

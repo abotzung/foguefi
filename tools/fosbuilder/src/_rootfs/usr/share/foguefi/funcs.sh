@@ -1,18 +1,21 @@
 #!/bin/bash
+# funcs.sh - The heart of FOGUefi
+# Copyright (C) 2024 Alexandre BOTZUNG <alexandre@botzung.fr>
 #
-# @category FOGStubmenu
-# @package  FOGUefi
-# @author   Alexandre Botzung <alexandre.botzung@grandest.fr>
-# @license  http://opensource.org/licenses/gpl-3.0 GPLv3
-# @link     https://fogproject.org
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
-# S98_menuFogGUI
-# Menu de démarrage alternatif pour FOG stub (version 1.5.9+)
-#   Permets de démarrer FOG stub avec Secure Boot activée.
-# NOTE: Initialement, ce n'était qu'un hack perso.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-# Nouvelles variables (programmable au bootcmd): 
-
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+#
 # Compte de connexion : 
 # Nom d'utilisateur : FOG_username=foo
 # Mot de passe (en clair...) : FOG_password=bar
@@ -271,20 +274,36 @@ verifTaches () {
         token=$(curl -Lks --data "mac=$base64mac" "${web}status/hostgetkey.php")
         curl -Lks -o /tmp/hinfo.txt --data "sysuuid=${sysuuid}&mac=$mac&hosttoken=${token}" "${web}service/hostinfo.php" -A ''
 
+        FLAG_HINFO=0
         # Validates hinfo.txt
         if [[ -f /tmp/hinfo.txt ]]; then
             dummy=$(cat /tmp/hinfo.txt | grep export)
             # Not a export ? Delete the file
             [[ "$dummy" != *"export"* ]] && rm /tmp/hinfo.txt
+            [[ "$dummy" == *"export"* ]] && FLAG_HINFO=1
         fi
 
         # Valide le fichier krnl
         if [[ -f /tmp/hinfo_foguefi.txt ]]; then
             dummy=$(cat /tmp/hinfo_foguefi.txt | grep export)
-            if [[ "$dummy" != *"export"* ]]; then
-                rm /tmp/hinfo_foguefi.txt
-            fi    
+            [[ "$dummy" != *"export"* ]] && rm /tmp/hinfo_foguefi.txt
+            [[ "$dummy" == *"export"* ]] && FLAG_HINFO=1    
         fi
+        dummy=''
+
+
+        # Patch 20240811 ; in case of a "hinfo.txt" programmed tasking, destroy $task, $mode, $storage and $storageip
+        #                  Because theses files looks like this ; [[ -z "$storage" ]] && export storage='(...)'
+        if [[ "$FLAG_HINFO" -eq 1 ]]; then
+            unset task
+            unset mode
+            unset storage  # "unset" storage is important ; it permits the client to "switch" to another FOG cluster.
+            unset storageip
+            unset img
+            unset hostname
+            FLAG_HINFO=0
+        fi
+
         [[ -f /tmp/hinfo.txt ]] && . /tmp/hinfo.txt
         [[ -f /tmp/hinfo_foguefi.txt ]] && . /tmp/hinfo_foguefi.txt
     fi

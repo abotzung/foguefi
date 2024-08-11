@@ -7,7 +7,7 @@
 # Set up a couple of getty's
 tty1::respawn:/sbin/agetty --login-program "/bin/fos-manager" --login-options "--run-as-service" -n 38400 tty1 linux
 tty2::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" --login-options "--run-as-service" -n 38400 tty2 linux  
-#tty3::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" --login-options "--run-as-service" -n tty3 linux
+tty3::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" --login-options "--run-as-service" -n 38400 tty3 linux
 #tty4::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" --login-options "--run-as-service" -n tty4 linux
 #tty5::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" --login-options "--run-as-service" -n tty5 linux
 #tty6::respawn:/sbin/agetty --login-program "/bin/FOS-AdmRemote" --login-options "--run-as-service" -n tty6 linux

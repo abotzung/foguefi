@@ -1,6 +1,6 @@
 #!/sbin/openrc-run
 
-# Change root password ; Alex BOTZUNG
+# Automatically reboot FOS in 24hrs ; Alex BOTZUNG
 
 description="Reboot FOS in 24 hrs"
 

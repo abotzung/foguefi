@@ -1,12 +1,22 @@
 #!/bin/sh
-# @category FOGStubmenu
-# @package  FOGUefi
-# @author   Alexandre Botzung <alexandre.botzung@grandest.fr>
-# @license  http://opensource.org/licenses/gpl-3.0 GPLv3
-# @link     https://fogproject.org
+# FOS-ChangeRootPWD - Change the root password by a unknown, random string.
+# Copyright (C) 2024 Alexandre BOTZUNG <alexandre@botzung.fr>
 #
-# Modifie le mot de passe root par une chaîne aléatoire
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 pwd=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 30)
 echo -e "$pwd\n$pwd" | passwd root
+pwd=''
 exit 0
 

@@ -2,6 +2,7 @@
 
 . /usr/share/foguefi/funcs.sh
 
-do_exit
+[[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+[[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
 
 exit 123
