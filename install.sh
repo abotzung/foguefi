@@ -144,7 +144,7 @@ EOF
     
 	echo "==== Installation done ! ===="
 	echo ''
-	echo -e " REMEMBER to change your PXE Boot file  $bootfilename to \033[30;42m shimx64.efi \033[0m in your DHCP Server (option 67)"
+	echo -e " REMEMBER to change your PXE Boot file to \033[30;42m shimx64.efi \033[0m in your DHCP Server to use FOGUefi. (option 67)"
 	echo ''
 	echo ' - Have a nice day !'	
 	
