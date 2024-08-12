@@ -41,15 +41,22 @@ source /opt/fog/.fogsettings
 
 basedir="$PWD"
 
-echo 'FOGUefi installer'
+echo ' *** FOGUefi installer ***'
 echo ''
 
+if [[ ! -r "/opt/fog/.fogsettings" ]]; then
+	echo "ERROR ! No FOG installation detected on this server."
+	echo "Reason : file /opt/fog/.fogsettings not found."
+	exit 1
+fi
 if [[ -z "${docroot}${webroot}" ]]; then
 	echo "ERROR ! No FOG installation detected on this server."
+	echo "Reason : \$docroot / \$webroot is NULL"
 	exit 1
 fi
 if [[ -z "$hostname" ]]; then
 	echo "ERROR ! No FOG installation detected on this server."
+	echo "Reason : \$hostname is NULL"
 	exit 1
 fi
 
@@ -75,7 +82,7 @@ echo -e "\033[97;44m   ███████████████████
 echo -e "\033[97;44m                                                                     \033[0m"
 
 echo "   This installer runs on server '$hostname' (${ipaddress})"
-echo "   FOG Path : ${docroot}${webroot})"
+echo "   FOG Path : ${docroot}${webroot}"
 echo ''
 echo '   This installer extends the FOG PXE by installing shim, grub, GNU/Linux signed and a custom FOG "FOS" stub'
 echo '   It consists of 2 parts : '
