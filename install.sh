@@ -35,6 +35,7 @@
 #    - If FOG works on HTTPS, reconfigure Apache2.
 #============================================================================
 
+C_FOGUEFI_VERSION='20240812'
 
 # Oh ! Dirty !  ;
 source /opt/fog/.fogsettings
@@ -80,7 +81,8 @@ echo -e "\033[97;44m   ███████████████████
 echo -e "\033[97;44m   ████████████████ Released under GPL Version 3 █████████████████   \033[0m"
 echo -e "\033[97;44m   ███████████████████████████████████████████████████████████████   \033[0m"
 echo -e "\033[97;44m                                                                     \033[0m"
-
+echo "   Installer version : $C_FOGUEFI_VERSION"
+echo ''
 echo "   This installer runs on server '$hostname' (${ipaddress})"
 echo "   FOG Path : ${docroot}${webroot}"
 echo ''
