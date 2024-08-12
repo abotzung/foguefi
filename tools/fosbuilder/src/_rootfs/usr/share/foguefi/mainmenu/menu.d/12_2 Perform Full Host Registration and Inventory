@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# NOTE : foguefi "source" automatiquement fog/lib/funcs.sh
+. /usr/share/foguefi/funcs.sh
+clear
+# ---- Crée des drapeaux un peu partout afin d'être sûr de générer une tâche "manreg"
+export mode="manreg"
+echo 'export mode="manreg"' > /tmp/hinfo_foguefi.txt
+echo 'export type=""' >> /tmp/hinfo_foguefi.txt
+fog
+rm /tmp/hinfo_foguefi.txt 
+# Quitte immédiatement le menu ; fos-manager prends le relai sur la gestion des tâches...
+exit 123
+

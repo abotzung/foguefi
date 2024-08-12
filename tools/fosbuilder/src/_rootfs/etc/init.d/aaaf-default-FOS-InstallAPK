@@ -1,0 +1,15 @@
+#!/sbin/openrc-run
+
+# Change root password ; Alex BOTZUNG
+
+description="Install optional apk packages"
+
+depend() {
+    after network
+}
+
+start() {
+	ebegin "Install optional apk packages"
+	/bin/FOS-InstallAPK --run-as-service
+	eend $?
+}

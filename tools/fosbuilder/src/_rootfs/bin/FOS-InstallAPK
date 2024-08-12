@@ -1,0 +1,96 @@
+#!/bin/bash
+# FOS-InstallAPK - This script mount the NFS storage, check if folder "$_apk_storage" exists and proceed to install apk packages
+# Unmount /images upon completion
+# Note : The folder must not be writeable (server side)
+#
+# Copyright (C) 2024 Alexandre BOTZUNG <alexandre@botzung.fr>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
+if [[ "$1" != "--run-as-service" ]]; then echo "$0 must be launched in a service."; exit 1; fi
+. /usr/share/foguefi/funcs.sh
+
+_apk_storage='@apk' # "/images/" + "$_apk_storage" + "/"
+
+if [[ -z "$storage" ]]; then
+    echo "FATAL: Variable 'storage' is not defined."
+    sleep 1
+    exit 1
+fi
+
+type="down"
+storage_server=$(echo -e "$storage" | cut -f1 -d':')
+storage_path=$(echo -e "$storage" | cut -f2 -d':')
+if [[ "$(basename "$storage_path")" == "dev" ]]; then
+	# /foo/bar/dev/ -> /foo/bar/
+	storage_path="$(dirname "$storage_path")/"
+fi
+
+storage="${storage_server}:${storage_path}" 
+
+# var storage is used here. Eg: storage="123.456.789.012:/images"
+# Call mount function (RO) 
+# === HOOK : Rewrite internal functions used by fog.mount
+_internal_failureDetected=0
+echo() {
+    true
+}
+debugPause() {
+    true
+}
+handleError() {
+    _internal_failureDetected=1
+    true
+}
+dots() {
+    true
+}
+# === END HOOK
+. /bin/fog.mount
+
+# === Remove HOOK for echo()
+unset echo
+
+# Test a failure in fog.mount
+if [[ "$_internal_failureDetected" -ne 0 ]]; then
+    echo "FATAL: fog.mount returned non zero. (${storage})"
+    sleep 1
+    exit 1
+fi
+
+# Folder does not exist ? Exit gracefully
+if [[ ! -d "/images/${_apk_storage}" ]]; then
+    echo "INFO: Directory ${storage}${_apk_storage} does not exist, skipping 'apk add'"
+    umount /images >/dev/null 2>&1
+    exit 0
+fi
+
+# Folder exist && writeable ? STOP HERE!
+if [[ -w "/images/${_apk_storage}" ]]; then
+    echo "FATAL: Directory is writeable. (${storage}${_apk_storage})"
+    umount /images >/dev/null 2>&1
+    sleep 1
+    exit 1
+fi
+
+echo " Installing packages (apk), please wait..."
+# ...else install packages
+timeout -k 30 30 apk add --repositories-file=/dev/null --allow-untrusted --no-network --no-cache "/images/${_apk_storage}/"*.apk
+retval=$?
+echo " done."
+
+umount /images >/dev/null 2>&1
+
+exit "$retval"

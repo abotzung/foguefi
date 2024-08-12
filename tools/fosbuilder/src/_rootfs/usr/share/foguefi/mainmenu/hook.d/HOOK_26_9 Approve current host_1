@@ -1,0 +1,7 @@
+#!/bin/bash
+# HOOK - Renvoie systématiquement 1 (TODO : Afficher dans FOS quand le poste doit être approuvée)
+#
+# NOTE : foguefi "source" automatiquement fog/lib/funcs.sh
+. /usr/share/foguefi/funcs.sh
+
+exit 1

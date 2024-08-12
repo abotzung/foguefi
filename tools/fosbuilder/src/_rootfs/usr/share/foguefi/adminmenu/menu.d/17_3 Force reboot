@@ -1,0 +1,10 @@
+#!/bin/bash
+
+. /usr/share/foguefi/funcs.sh
+
+echo " ----------------- "
+echo "  REBOOTING NOW !  "
+echo " ----------------- "
+reboot -f
+
+exit 123

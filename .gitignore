@@ -1,0 +1,11 @@
+# -- Ignore FOSBuilder related files
+tools/fosbuilder/installer.log
+tools/fosbuilder/tmp
+tools/fosbuilder/release
+tools/fosbuilder/rootfs
+tools/fosbuilder/sources
+tools/fosbuilder/temp
+tools/fosbuilder/buildtool
+# -- Ignore internal dev tools 
+tools/fosbuilder/_*.sh
+/_*.sh

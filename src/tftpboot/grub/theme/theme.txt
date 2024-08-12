@@ -1,93 +1,73 @@
+# theme.txt - Graphical theme for GRUB2. This theme is made for FOGUefi (https://github.com/abotzung/foguefi)
+# Copyright (C) 2024 Alexandre BOTZUNG <alexandre@botzung.fr>
 #
-# FOG Theme heavily inspired by {Redo Rescue themed graphics}
-#  http://redorescue.com/
-#  Redo Rescue ©2010−2020 Zebradots Software | Released under the GNU GPLv3
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
-# Alexandre BOTZUNG <alexandre.botzung@grandest.fr> <02 2023>
-# https://github.com/FOGProject/fogproject
-# The FOG Project logo(l), made with love
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Assets used : - The FOG Logo <https://fogproject.org/>
+#               - Font Awesome <https://fontawesome.com/>
 
 title-text: ""
 desktop-color: "black"
 desktop-image: "background.png"
 desktop-image-scale-method: "fitheight"
 terminal-box: "terminal_*.png"
-terminal-font: "Unifont Regular 16"
 terminal-border: "4"
 
 + boot_menu {
-  left = 21% #25%
-  top = 45% #55%
-  width = 54% #50%
-  height = 336 #144 # Doit être un multiple de item_height
-  item_font = "Helvetica Bold 18"
-  item_color = "#ffffff"
-  selected_item_color = "#ffffff"
-  icon_width = 32
-  icon_height = 32
-  item_icon_space = 12
-  item_height = 48
+  left = 21%
+  top = 15%
+  width = 54%
+  height = 353 # Doit être un multiple de item_height
+  item_color = "#FFFFFF"            # Couleur de l'item à l'écran (texte)
+  selected_item_color = "#FFFFFF"   # Couleur de l'item sélectionné à l'écran (texte)
+  icon_width = 16
+  icon_height = 16
+  item_icon_space = 12 # Décalage (en px) entre l'icone et le text item
+  item_height = 44
   item_spacing = 0
   item_padding = 0
   item_pixmap_style = "box_*.png"
   selected_item_pixmap_style = "box_selected_*.png"
   menu_pixmap_style = "x_*.png"
   scrollbar = true
-  scrollbar_width = 20
+  scrollbar_width = 10
+  scrollbar_bottom_pad = 1
   scrollbar_frame = "sliderbg_*.png"
   scrollbar_thumb = "slider_*.png"
 }
 
 + image {
   id = "fog_logo"
-  left = 7%
-  top = 9%
+  left = 2%
+  top = 83%
   file = "foglogo.png"
 }
 
 + label {
-  id = "bottom_help"
-  left = 0
-  top = 100%-50
-  width = 100%
-  align = "center"
-  color = "gray"
-  font = "Helvetica Regular 12"
-  text = @KEYMAP_MIDDLE@
-}
-
-+ label {
   id = "bottom_info"
-  left = 0
-  top = 100%-30
+  left = 3%
+  top = 97%
   width = 100%
-  align = "center"
-  color = "gray"
-  font = "Helvetica Regular 12"
-  text = "MOD_UEFI Secure Boot - The FOG Project Team & Alex Botzung (v:20230724)"
+  align = "right"
+  color = "#FFFFFF"
+  text = "FOGUefi (20240708) "
 }
-
-#+ circular_progress {
-#  id = "__timeout__"
-#  center_bitmap = "circle.png"
-#  tick_bitmap = "tick.png"
-#  num_ticks = 24
-#  ticks_disappear = true
-#  start_angle = 64
-#  left = 85%-68
-#  top = 20%-68
-#  width = 136
-#  height = 136
-#}
 
 + label {
   id = "__timeout__"
-  left = 85%-68
-  top = 20%-12
-  width = 136
-  height = 16
+  left = 50%
+  top = 12%
   align = "center"
-  color = "#627d9f"
-  font = "Helvetica Bold 18"
+  color = "#222D32"
 }

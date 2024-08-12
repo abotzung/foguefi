@@ -29,11 +29,11 @@ apk_list=('alpine-base' 'acl' 'bash' 'btrfs-progs' 'bzip2' 'cabextract' 'chntpw'
 'pcre' 'pigz' 'popt' 'rsync' 'sed' 'smartmontools' 'socat' 'util-linux' 'nano' \
 'xfsprogs' 'xz' 'zlib' 'zstd' 'curl' 'wget' 'testdisk' 'dialog' \
 'kmod' \
-'dtach' 'ttyd' 'mini_httpd') # Ajouts pour FOGUefi
+'dtach' 'ttyd' 'mini_httpd' 'memtester' 'openssl') # Ajouts pour FOGUefi
 # Ajout 20240522 - kmod -> Nécessaire pour depmod/insmod correctement les modules d'Ubuntu 24.04
 
 # Quitte immédiatement si il y a une erreur non gérée
-set -eE -o functrace 
+set -eE -o functrace
 set -o pipefail -o errexit -o errtrace
 shopt -s inherit_errexit
 _ERRMSG="" # Utilisée dans le cas où on souhaite changer le message d'erreur par défaut.
@@ -620,6 +620,36 @@ eenter 'Copy Linux, Shim and Grub to the release folder'
   } >> "$do_logfile" 2>&1
 eend 'Done' "$C_GREEN"
 
+eenter 'Generate SHA256 of Linux, Shim and Grub to the release folder'
+  _ERRMSG='FATAL : Generate SHA256 of Linux, Shim and Grub to the release folder'
+  {
+  _SHA256_LINUXKRNL="$(sha256sum "$(get_basedir_release)/linux_kernel" | cut -d" " -f1)"
+  _SHA256_SHIM="$(sha256sum "$(get_basedir_release)/shimx64.efi" | cut -d" " -f1)"
+  _SHA256_GRUB="$(sha256sum "$(get_basedir_release)/grubx64.efi" | cut -d" " -f1)"
+
+  # Test SHA256 before writing to disk
+  echo "$_SHA256_LINUXKRNL $(get_basedir_release)/linux_kernel" | sha256sum --check --status
+  if [[ $? != 0 ]]; then
+    _ERRMSG='FATAL : SHA256 verification failed for linux_kernel'
+    false; exit 1;
+  fi
+  echo "$_SHA256_SHIM $(get_basedir_release)/shimx64.efi" | sha256sum --check --status
+  if [[ $? != 0 ]]; then
+    _ERRMSG='FATAL : SHA256 verification failed for shimx64.efi'
+    false; exit 1;
+  fi
+  echo "$_SHA256_GRUB $(get_basedir_release)/grubx64.efi" | sha256sum --check --status
+  if [[ $? != 0 ]]; then
+    _ERRMSG='FATAL : SHA256 verification failed for grubx64.efi'
+    false; exit 1;
+  fi
+  # Tests okay, i write sha256 to the disk.
+  echo "$_SHA256_LINUXKRNL" > "$(get_basedir_release)/linux_kernel.sha256"
+  echo "$_SHA256_SHIM" > "$(get_basedir_release)/shimx64.efi.sha256"
+  echo "$_SHA256_GRUB" > "$(get_basedir_release)/grubx64.efi.sha256"
+  } >> "$do_logfile" 2>&1
+eend 'Done' "$C_GREEN"
+
 # So, at this point, we are successfuly downloaded alpine-chroo-install and FOS. Shall we begin the process ? 
 
 # TODO : Remove ME ! 
@@ -683,15 +713,15 @@ EOF
     rm -rf /root/packages
 EOF
   eend 'Done' "$C_GREEN"
-  eenter 'Compile framebuffer-vncserver'
-    _ERRMSG='FATAL: Compilation of framebuffer-vncserver failed'
-    alpine_exec "$(get_basedir_buildtool)" 'root' <<-EOF
-    cd /sources/src/framebuffer-vncserver
-    abuild -F -r
-    find /root/packages -name '*.apk' -exec cp "{}" /sources/apkout/  \;
-    rm -rf /root/packages
-EOF
-  eend 'Done' "$C_GREEN"
+#  eenter 'Compile framebuffer-vncserver'
+#    _ERRMSG='FATAL: Compilation of framebuffer-vncserver failed'
+#    alpine_exec "$(get_basedir_buildtool)" 'root' <<-EOF
+#    cd /sources/src/framebuffer-vncserver
+#    abuild -F -r
+#    find /root/packages -name '*.apk' -exec cp "{}" /sources/apkout/  \;
+#    rm -rf /root/packages
+#EOF
+#  eend 'Done' "$C_GREEN"
   eenter 'Unmount buildtool'
     umount_devproc "$(get_basedir_buildtool)"
   eend 'Done' "$C_GREEN"
@@ -782,9 +812,9 @@ EOF
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaaa-sysinit-depmod sysinit'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaab-default-network default'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaaa-default-keylayout default'
-    alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaac-default-vncserver default'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaad-default-changerootpwd default'
-    alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaae-default-earlyshell default'
+    alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaae-default-rebootin24hrs default'
+    alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add aaaf-default-FOS-InstallAPK default'
 
     # Now managed directly by OpenRC/agetty
     #alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add zzzz-default-fog default'
@@ -792,7 +822,7 @@ EOF
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add ttyd default'
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add mini_httpd default'
 
-    alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add sshd boot' # Init SSH at boot
+    #alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add sshd boot' # Init SSH at boot
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add udev sysinit' # Init udev at sysinit
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add udev-trigger sysinit' # Init udev-trigger at sysinit
     alpine_exec "$(get_basedir_rootfs)" 'root' 'rc-update add udev-settle sysinit' # Init udev-settle at sysinit
@@ -873,6 +903,35 @@ EOF
     mv "$(get_basedir_temp)"/fog_uefi.cpio.xz "$(get_basedir_release)"/fog_uefi.cpio.xz
     chmod +r "$(get_basedir_release)"/fog_uefi.cpio.xz
   eend "Done ($(du -hs --apparent-size "$(get_basedir_release)"/fog_uefi.cpio.xz | cut -f1))" "$C_GREEN"
+
+  eenter 'Generate SHA256 of fog_uefi.cpio.xz to the release folder'
+    _ERRMSG='FATAL : Generate SHA256 of the CPIO.xz to the release folder'
+    {
+    _SHA256_CPIO="$(sha256sum "$(get_basedir_release)/fog_uefi.cpio.xz" | cut -d" " -f1)"
+
+    # Test SHA256 before writing to disk
+    echo "$_SHA256_CPIO $(get_basedir_release)/fog_uefi.cpio.xz" | sha256sum --check --status
+    if [[ $? != 0 ]]; then
+      _ERRMSG='FATAL : SHA256 verification failed for fog_uefi.cpio.xz'
+      false; exit 1;
+    fi
+    # Tests okay, i write sha256 to the disk.
+    echo "$_SHA256_CPIO" > "$(get_basedir_release)/fog_uefi.cpio.xz.sha256"
+    } >> "$do_logfile" 2>&1
+  eend 'Done' "$C_GREEN"
+
+  eenter 'Generate a release file'
+    _ERRMSG='FATAL : Unable to generate a release file'
+    echo "builddate=$(date +%Y%m%d)" > "$(get_basedir_release)/release"
+    _clientAPIversion="$(cat "$(get_basedir_src)"/_rootfs/usr/share/foguefi/funcs.sh |grep 'C_FOGUEFI_APIver='|cut -d'=' -f2|sed 's|[^0-9]||g')"
+    if [[ -z "$_clientAPIversion" ]]; then
+      _clientAPIversion='19700101'
+    fi
+    echo "clientAPIversion='$_clientAPIversion'" >> "$(get_basedir_release)/release"
+    chmod +r "$(get_basedir_release)/release"
+    chmod +x "$(get_basedir_release)/release"
+  eend 'Done' "$C_GREEN"  
+
 
   _logecho "=> $(basename "$0") finished. Thanks for using my script."
   # FIXME : Refaire la liste des services communément utilisée dans FOGUefi (VNC, PWD, Earlyshell, ...)

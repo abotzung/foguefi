@@ -1,6 +1,6 @@
 diff -ruN ./bin/fog ../FOS_PREP/bin/fog
---- ./bin/fog	2024-03-05 02:16:16.625283904 +0100
-+++ ../FOS_PREP/bin/fog	2024-03-18 09:26:20.226840889 +0100
+--- ./bin/fog	2024-07-04 02:17:33.994298149 +0200
++++ ../FOS_PREP/bin/fog	2024-07-04 02:20:51.403344799 +0200
 @@ -11,7 +11,7 @@
  dots "Running post init scripts"
  [[ ! -d /imagesinit ]] && mkdir /imagesinit >/dev/null 2>&1
@@ -11,8 +11,8 @@ diff -ruN ./bin/fog ../FOS_PREP/bin/fog
      if [[ -f /imagesinit/.mntcheck ]]; then
          if [[ -f /imagesinit/postinitscripts/fog.postinit ]]; then
 diff -ruN ./bin/fog.av ../FOS_PREP/bin/fog.av
---- ./bin/fog.av	2024-03-05 02:16:16.625283904 +0100
-+++ ../FOS_PREP/bin/fog.av	2024-03-18 09:27:09.670316290 +0100
+--- ./bin/fog.av	2024-07-04 02:17:33.994298149 +0200
++++ ../FOS_PREP/bin/fog.av	2024-07-04 02:21:10.555833280 +0200
 @@ -12,7 +12,7 @@
  sysuuid=${sysuuid,,}
  dots "Mounting Clamav"
@@ -23,8 +23,8 @@ diff -ruN ./bin/fog.av ../FOS_PREP/bin/fog.av
      echo "Failed"
      debugPause
 diff -ruN ./bin/fog.mount ../FOS_PREP/bin/fog.mount
---- ./bin/fog.mount	2024-03-05 02:16:16.625283904 +0100
-+++ ../FOS_PREP/bin/fog.mount	2024-03-18 09:27:36.378032760 +0100
+--- ./bin/fog.mount	2024-07-04 02:17:33.994298149 +0200
++++ ../FOS_PREP/bin/fog.mount	2024-07-04 02:21:32.236386027 +0200
 @@ -14,10 +14,10 @@
  umount /images >/dev/null 2>&1
  case $type in
@@ -39,8 +39,8 @@ diff -ruN ./bin/fog.mount ../FOS_PREP/bin/fog.mount
  esac
  case $? in
 diff -ruN ./bin/fog.photorec ../FOS_PREP/bin/fog.photorec
---- ./bin/fog.photorec	2024-03-05 02:16:16.625283904 +0100
-+++ ../FOS_PREP/bin/fog.photorec	2024-03-18 09:25:52.859131084 +0100
+--- ./bin/fog.photorec	2024-07-04 02:17:33.994298149 +0200
++++ ../FOS_PREP/bin/fog.photorec	2024-07-04 02:22:14.021450759 +0200
 @@ -18,7 +18,7 @@
  echo "Done"
  debugPause
@@ -51,8 +51,8 @@ diff -ruN ./bin/fog.photorec ../FOS_PREP/bin/fog.photorec
      0)
          echo "Done"
 diff -ruN ./bin/fog.statusreporter ../FOS_PREP/bin/fog.statusreporter
---- ./bin/fog.statusreporter	2024-03-05 02:16:16.625283904 +0100
-+++ ../FOS_PREP/bin/fog.statusreporter	2024-03-18 02:04:49.238258453 +0100
+--- ./bin/fog.statusreporter	2024-07-04 02:17:33.994298149 +0200
++++ ../FOS_PREP/bin/fog.statusreporter	2024-07-04 02:22:32.925932223 +0200
 @@ -9,6 +9,7 @@
  while :; do
      tmpfile="/tmp/status.fog"
@@ -61,10 +61,58 @@ diff -ruN ./bin/fog.statusreporter ../FOS_PREP/bin/fog.statusreporter
      cat /dev/null > $tmpfile 2>/dev/null
      [[ -z $mac ]] && continue
      status=$(echo $status | base64)
+diff -ruN ./bin/fog.wipe ../FOS_PREP/bin/fog.wipe
+--- ./bin/fog.wipe	2024-07-04 02:17:33.994298149 +0200
++++ ../FOS_PREP/bin/fog.wipe	2024-07-06 22:32:54.633725388 +0200
+@@ -7,7 +7,7 @@
+ hd=""
+ [[ -z $seconds ]] && seconds=60
+ getHardDisk
+-echo " WARNING!  You are about to destroy the contents of the following hard disk:"
++echo -e "\033[97;41m WARNING!  You are about to destroy the contents of the following hard disk:\033[0m"
+ echo -e "      $hd\n"
+ echo -e " You have $seconds seconds to turn off this computer to cancel!\n"
+ usleep $((seconds * 1000000))
 diff -ruN ./usr/share/fog/lib/funcs.sh ../FOS_PREP/usr/share/fog/lib/funcs.sh
---- ./usr/share/fog/lib/funcs.sh	2024-03-05 02:16:16.625283904 +0100
-+++ ../FOS_PREP/usr/share/fog/lib/funcs.sh	2024-05-27 21:03:06.500072213 +0200
-@@ -27,26 +27,31 @@
+--- ./usr/share/fog/lib/funcs.sh	2024-07-04 02:17:33.994298149 +0200
++++ ../FOS_PREP/usr/share/fog/lib/funcs.sh	2024-07-04 04:13:10.457456273 +0200
+@@ -1,15 +1,34 @@
+ #!/bin/bash
++#== P A T C H : Recover kernel parameters from hinfo && hinfo_foguefi
++#==  if a task is present in theses files. (delete it otherwise)
++if [[ -f /tmp/hinfo.txt ]]; then
++    dummy=$(cat /tmp/hinfo.txt | grep export)
++    [[ "$dummy" != *"export"* ]] && rm /tmp/hinfo.txt
++fi
++if [[ -f /tmp/hinfo_foguefi.txt ]]; then
++    dummy=$(cat /tmp/hinfo_foguefi.txt | grep export)
++    [[ "$dummy" != *"export"* ]] && rm /tmp/hinfo_foguefi.txt
++fi
++[[ -f /tmp/hinfo.txt ]] && . /tmp/hinfo.txt
++[[ -f /tmp/hinfo_foguefi.txt ]] && . /tmp/hinfo_foguefi.txt
++#EOP================ E N D   O F   P A T C H =================EOP#
+ export initversion=19800101
+ . /usr/share/fog/lib/partition-funcs.sh
+ REG_LOCAL_MACHINE_XP="/ntfs/WINDOWS/system32/config/system"
+ REG_LOCAL_MACHINE_7="/ntfs/Windows/System32/config/SYSTEM"
+ # 1 to turn on massive debugging of partition table restoration
+ [[ -z $ismajordebug ]] && ismajordebug=0
++#== P A T C H : In case of FOS started with cmdline parameters different from hinfo file, 
++#== hinfo must takes precedence over args.
++#
+ #If a sub shell gets invoked and we lose kernel vars this will reimport them
+ for var in $(cat /proc/cmdline); do
+ 	var=$(echo "${var}" | awk -F= '{name=$1; gsub(/[+][_][+]/," ",$2); gsub(/"/,"\\\"", $2); value=$2; if (length($2) == 0 || $0 !~ /=/ || $0 ~ /nvme_core\.default_ps_max_latency_us=/) {print "";} else {printf("%s=%s", name, value)}}')
+     [[ -z $var ]] && continue;
+-    eval "export ${var}" 2>/dev/null
++    varLABEL="${var%=*}"
++    varCONTENT="${var#*=}"
++    # specific export not defined ? i'm exporting it.
++    [[ -z "${!varLABEL}" ]] && eval "export ${var}" 2>/dev/null
+ done
+ ### If USB Boot device we need a way to get the kernel args properly
+ [[ $boottype == usb && -f /tmp/hinfo.txt ]] && . /tmp/hinfo.txt
+@@ -27,26 +46,29 @@
  # Displays the nice banner along with the running version
  displayBanner() {
      version=$(curl -Lks ${web}service/getversion.php 2>/dev/null)
@@ -88,14 +136,13 @@ diff -ruN ./usr/share/fog/lib/funcs.sh ../FOS_PREP/usr/share/fog/lib/funcs.sh
 -    echo "   =================================="
 +    if [ -r "/etc/os-release" ]; then source "/etc/os-release" 2>/dev/null; fi
 +    echo -e "\033[97;44m                                                                     \033[0m"
-+    echo -e "\033[97;44m                                                                     \033[0m"
 +    echo -e "\033[97;44m   ███████████████████████████████████████████████████████████████   \033[0m"
 +    echo -e "\033[97;44m   ███        ████    █████      ███  ████  █████████████████  ███   \033[0m"
 +    echo -e "\033[97;44m   ███  █████████  ██  ███   ██   ██  ████  █████████████████  ███   \033[0m"
-+    echo -e "\033[97;44m   ███  ████████  ████  ██  ████  ██  ████  ███     ███     ██████   \033[0m"
++    echo -e "\033[97;44m   ███  ████████  ████  ██  ████  ██  ████  ███     ███    ███████   \033[0m"
 +    echo -e "\033[97;44m   ███  ████████  ████  ██  ████████  ████  ██  ██████  █████  ███   \033[0m"
 +    echo -e "\033[97;44m   ███      ████  ████  ██  ████████  ████  ██  ██████  █████  ███   \033[0m"
-+    echo -e "\033[97;44m   ███  ████████  ████  ██  ███   ██  ████  ██      ██     ██  ███   \033[0m"
++    echo -e "\033[97;44m   ███  ████████  ████  ██  ███   ██  ████  ██      ██    ███  ███   \033[0m"
 +    echo -e "\033[97;44m   ███  ████████  ████  ██  ████  ██  ████  ██  ██████  █████  ███   \033[0m"
 +    echo -e "\033[97;44m   ███  █████████  ██  ███   ██   ██  ████  ██  ██████  █████  ███   \033[0m"
 +    echo -e "\033[97;44m   ███  ██████████    █████      ████      ████     ██  █████  ███   \033[0m"
@@ -108,14 +155,13 @@ diff -ruN ./usr/share/fog/lib/funcs.sh ../FOS_PREP/usr/share/fog/lib/funcs.sh
 +    echo -e "\033[97;44m   ████████████████ Released under GPL Version 3 █████████████████   \033[0m"
 +    echo -e "\033[97;44m   ███████████████████████████████████████████████████████████████   \033[0m"
 +    echo -e "\033[97;44m                                                                     \033[0m"
-+    echo -e "\033[97;44m                                                                     \033[0m"
      echo "   Version: $version"
 -    echo "   Init Version: $initversion"
 +    echo "   Init Version: $initversion (${NAME} ${VERSION_ID})"
  }
  # Gets all system mac addresses except for loopback
  #getMACAddresses() {
-@@ -57,7 +62,8 @@
+@@ -57,7 +79,8 @@
  # Gets all system mac addresses except for loopback
  getMACAddresses() {
      read ifaces <<< $(/sbin/ip -4 -o addr | awk -F'([ /])+' '/global/ {print $2}' | tr '[:space:]' '|' | sed -e 's/^[|]//g' -e 's/[|]$//g')
@@ -125,3 +171,124 @@ diff -ruN ./usr/share/fog/lib/funcs.sh ../FOS_PREP/usr/share/fog/lib/funcs.sh
      echo $mac_addresses
  }
  # Gets all macs and types.
+@@ -1707,15 +1730,38 @@
+     local str="$1"
+     local parts=""
+     local part=""
+-    echo "##############################################################################"
+-    echo "#                                                                            #"
+-    echo "#                         An error has been detected!                        #"
+-    echo "#                                                                            #"
+-    echo "##############################################################################"
++	_colBG=41;_colFG=97
++    echo -e "\033[${_colFG};${_colBG}m██████████████████████████████████████████████████████████████████████████████\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m█                         An error has been detected!                        █\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m██████████████████████████████████████████████████████████████████████████████\033[0m"
+     echo "Init Version: $initversion"
+     echo -e "$str\n"
+     echo "Kernel variables and settings:"
+     cat /proc/cmdline | sed 's/ad.*=.* //g'
++    # P A T C H - Add error report generation
++	# unwind execution stack
++	i=-1
++	execution_trace=''
++	for funct in "${FUNCNAME[@]}"
++	do
++		execution_trace="$execution_trace --> Function : $funct line : ${BASH_LINENO[$i]}"
++		i=$((i+1))
++	done
++	{
++		echo '***AN ERROR HAS BEEN DETECTED***'
++		echo "--On $(date --iso-8601=seconds)"
++		echo "--Hostname: $(hostname -s)"
++		echo "--Init Version: $initversion"
++		echo "--MSG:$str"
++		echo "--Kernel variables and settings: $(cat /proc/cmdline | sed 's/ad.*=.* //g')"
++		echo "--Execution trace: $execution_trace"
++		echo "--Free space: $(df -h)"
++		echo "--Mount point: $(mount)"
++		echo "--Set variables: $(set -o posix ; set)"
++        [[ -r "/tmp/trigger.fos_error" ]] && . /tmp/trigger.fos_error
++	} >> /tmp/fos_error.log
+     #
+     # expand the file systems in the restored partitions
+     #
+@@ -1729,21 +1775,16 @@
+                     getPartitions "$hd"
+                     for part in $parts; do
+                         expandPartition "$part"
++                        echo " (i) expandPartition $part on $hd return $?" >> /tmp/fos_error.log
+                     done
+                 fi
+                 ;;
+         esac
+     fi
+-    if [[ -z $isdebug ]]; then
+-        echo "##############################################################################"
+-        echo "#                                                                            #"
+-        echo "#                      Computer will reboot in 1 minute                      #"
+-        echo "#                                                                            #"
+-        echo "##############################################################################"
+-        usleep 60000000
+-    else
++    if [[ -n $isdebug ]]; then
+         debugPause
+     fi
++    echo '***END OF ERROR LOG***' >> /tmp/fos_error.log
+     exit 1
+ }
+ # Prints a visible banner describing an issue but not breaking
+@@ -1751,17 +1792,41 @@
+ # $1 The string to inform the user what the problem is
+ handleWarning() {
+     local str="$1"
+-    echo "##############################################################################"
+-    echo "#                                                                            #"
+-    echo "#                        A warning has been detected!                        #"
+-    echo "#                                                                            #"
+-    echo "##############################################################################"
++    # P A T C H - Add warning report generation
++	# unwind execution stack
++	i=-1
++	execution_trace=''
++	for funct in "${FUNCNAME[@]}"
++	do
++		execution_trace="$execution_trace --> Function : $funct line : ${BASH_LINENO[$i]}"
++		i=$((i+1))
++	done
++	{
++		echo '***A WARNING HAS BEEN DETECTED***'
++		echo "--On $(date --iso-8601=seconds)"
++		echo "--Hostname: $(hostname -s)"
++		echo "--Init Version: $initversion"
++		echo "--MSG:$str"
++		echo "--Kernel variables and settings: $(cat /proc/cmdline | sed 's/ad.*=.* //g')"
++		echo "--Execution trace: $execution_trace"
++		echo "--Free space: $(df -h)"
++		echo "--Mount point: $(mount)"
++		echo "--Set variables: $(set -o posix ; set)"
++        [[ -r "/tmp/trigger.fos_warning" ]] && . /tmp/trigger.fos_warning
++        echo '***END OF WARNING LOG***' >> /tmp/fos_warning.log
++	} >> /tmp/fos_warning.log
++	_colBG=43;_colFG=97
++    echo -e "\033[${_colFG};${_colBG}m██████████████████████████████████████████████████████████████████████████████\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m█                        A warning has been detected!                        █\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m██████████████████████████████████████████████████████████████████████████████\033[0m"
+     echo -e "$str"
+-    echo "##############################################################################"
+-    echo "#                                                                            #"
+-    echo "#                          Will continue in 1 minute                         #"
+-    echo "#                                                                            #"
+-    echo "##############################################################################"
++    echo -e "\033[${_colFG};${_colBG}m██████████████████████████████████████████████████████████████████████████████\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m█                          Will continue in 1 minute                         █\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m█                                                                            █\033[0m"
++    echo -e "\033[${_colFG};${_colBG}m██████████████████████████████████████████████████████████████████████████████\033[0m"
+     usleep 60000000
+     debugPause
+ }

@@ -1,0 +1,11 @@
+#!/bin/bash
+# HOOK - Teste si le poste est inconnu. exit 0 si OUI, 1 sinon
+#
+# NOTE : foguefi "source" automatiquement fog/lib/funcs.sh
+. /usr/share/foguefi/funcs.sh
+
+if [ "$(hostname -s)" == "$C_UNKNOWN_COMPUTER" ]; then
+    exit 0
+else
+    exit 1
+fi

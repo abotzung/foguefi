@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Boot page for pxe/GRUB
  *
@@ -8,7 +7,7 @@
  * @category Boot
  * @package  FOGProject
  * @author   Tom Elliott <tommygunsster@gmail.com>
- * @author   Alexandre Botzung <alexandre.botzung@grandest.fr>
+ * @author   Alexandre Botzung <alexandre@botzung.fr>
  * @license  http://opensource.org/licenses/gpl-3.0 GPLv3
  * @link     https://fogproject.org
  */
@@ -18,17 +17,17 @@
  * @category Boot
  * @package  FOGProject
  * @author   Tom Elliott <tommygunsster@gmail.com>
- * @author   Alexandre Botzung <alexandre.botzung@grandest.fr> 
+ * @author   Alexandre Botzung <alexandre@botzung.fr> 
  * @license  http://opensource.org/licenses/gpl-3.0 GPLv3
  * @link     https://fogproject.org
  */
 
 require '../../commons/base.inc.php';
-header("Content-type: text/html"); // DANGER : !!!NE PAS CHANGER L'HEADER!!! ; SINON GRUB REFUSE DE "normal" LA PAGE !!
+header("Content-type: text/html"); // DANGER : !!!DOT NOT MODIFY THE HEADER!!! ; ELSE GRUB REFUSES TO "normal" THE WEBPAGE !!
 
-if(isset($_REQUEST['testconn'])){ // Un code bidon pour "tester la connexion..."
-	// GRUB Ubuntu2.06 BUG + Proxmox 7.2 UEFI ; Aléatoirement, GRUB n'arrive pas à télécharger la page HTTP.
-	// NOTE : Si (http,... n'est pas disponible, GRUB rebascule sur TFTP, en mode dégradée
+if(isset($_REQUEST['testconn'])){ //A "dummy" routine for "testing connexion to FOG server..."
+	// NOTE : GRUB (signed) cannot fetch files from a webserver in HTTPS mode.
+    //        This piece of code try to deduce if SSL is enabled on FOG Server, and modify the grub variable "web" accordingly.
 	echo "set httpproto=\"".FOGCore::$httpproto."\"\n";
 	die("set testconn=1\n");
 }

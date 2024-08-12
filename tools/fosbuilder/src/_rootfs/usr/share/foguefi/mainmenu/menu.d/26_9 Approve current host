@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# NOTE : foguefi "source" automatiquement fog/lib/funcs.sh
+. /usr/share/foguefi/funcs.sh
+
+# ===== Approve Current Host
+PROCESS_ApproveCurrentHost
+# Quitte immédiatement le menu ; fos-manager prends le relai sur la gestion des tâches...
+exit 123

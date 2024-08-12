@@ -10,6 +10,37 @@ depend() {
     after network
 }
 
+getIPAddresses() {
+    read ipaddr << EOF
+$(/sbin/ip -4 -o addr | awk -F'([ /])+' '/global/ {print $4}' | tr '[:space:]' '|' | sed -e 's/^[|]//g' -e 's/[|]$//g')
+EOF
+    echo $ipaddr
+}
+
 start_pre() {
     mkdir -p /run/ttyd
+    # Default command_args if openssl is missing
+    command_args="-W -a -p 81 /bin/FOS-AdmRemote >> /dev/null 2>&1&"
+    
+    # Create CA key and certificate. Import ca.crt as root certificate to the computers accessing the router and save ca.key for future use.
+    [ ! -d "/etc/ttyd/" ] && mkdir "/etc/ttyd"
+    # No openssl ? Spawn ttyd witout ssl support.
+    openssl version >> /dev/null 2>&1
+    retVal=$?
+	if [ $retVal -ne 0 ]; then
+		echo "Warning : openssl not found"
+		return
+	fi
+    [ -e "/etc/ttyd/ca.key" ] || openssl genrsa -out /etc/ttyd/ca.key 2048 >> /dev/null 2>&1
+    [ -e "/etc/ttyd/ca.crt" ] || openssl req -new -x509 -days 7 -key /etc/ttyd/ca.key -subj "/C=FR/ST=Alsace/L=Strasbourg/O=FOGUefi/CN=FOGUefi Temporary Root CA" -out /etc/ttyd/ca.crt >> /dev/null 2>&1
+
+    # Create server key and certificate. use server.key and server.crt as valid files for uhttpd, ttyd, etc.
+    [ -e "/etc/ttyd/server.key" ] || openssl req -newkey rsa:2048 -nodes -keyout /etc/ttyd/server.key -subj "/C=FR/ST=Alsace/L=Strasbourg/O=FOGUefi/CN=$(hostname -s)" -out /etc/ttyd/server.csr >> /dev/null 2>&1
+    echo "subjectAltName=IP:$(getIPAddresses),DNS:$(hostname -s)" > /tmp/subjectAltName.txt
+    openssl x509 -sha256 -req -extfile /tmp/subjectAltName.txt -days 7 -in /etc/ttyd/server.csr -CA /etc/ttyd/ca.crt -CAkey /etc/ttyd/ca.key -CAcreateserial -out /etc/ttyd/server.crt >> /dev/null 2>&1
+    
+    # command_args with openssl 
+    #command_args="-W -a -p 81 --ssl --ssl-cert /etc/ttyd/server.crt --ssl-key /etc/ttyd/server.key --ssl-ca /etc/ttyd/ca.crt /bin/FOS-AdmRemote >> /dev/null 2>&1&"
+    # *** BUG BUG BUG *** ; the --ssl-ca /etc/ttyd/ca.crt dosent work on Firefox 126 ; why ? 
+    command_args="-W -a -p 81 --ssl --ssl-cert /etc/ttyd/server.crt --ssl-key /etc/ttyd/server.key /bin/FOS-AdmRemote >> /dev/null 2>&1&"
 }

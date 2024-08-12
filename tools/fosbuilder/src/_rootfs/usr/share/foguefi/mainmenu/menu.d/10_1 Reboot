@@ -1,0 +1,8 @@
+#!/bin/bash
+
+. /usr/share/foguefi/funcs.sh
+
+[[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+[[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
+
+exit 123

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#
+# NOTE : foguefi "source" automatiquement fog/lib/funcs.sh
+. /usr/share/foguefi/funcs.sh
+
+# ===== deploy_image
+PROCESS_SelectDownloadImage
+# Quitte immédiatement le menu ; fos-manager prends le relai sur la gestion des tâches...
+exit 123

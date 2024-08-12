@@ -1,0 +1,15 @@
+#!/sbin/openrc-run
+
+# Automatically reboot FOS in 24hrs ; Alex BOTZUNG
+
+description="Reboot FOS in 24 hrs"
+
+depend() {
+	true
+}
+
+start() {
+	ebegin "Reboot FOS in 24 hrs"
+	busybox reboot -f -d 86400 &
+	eend $?
+}

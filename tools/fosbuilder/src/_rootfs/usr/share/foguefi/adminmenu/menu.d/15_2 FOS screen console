@@ -1,0 +1,5 @@
+#!/bin/bash
+
+dtach -a /run/dtach/console -Ez -r winch
+
+exit 123

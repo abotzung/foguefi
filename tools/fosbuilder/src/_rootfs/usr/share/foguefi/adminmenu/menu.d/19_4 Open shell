@@ -1,0 +1,10 @@
+#!/bin/bash
+
+. /usr/share/foguefi/funcs.sh
+
+clear
+displayBanner
+bash
+echo "Bye."
+
+exit 123

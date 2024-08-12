@@ -3,9 +3,9 @@ Sorry, this document is only available in French (yet) !
 ============================================================================
                     F O G U E F I    v 1 . 5 . 10 . X
                 Unofficial Secure Boot Patch for FOG 'FOS'
-  Alexandre BOTZUNG [alexandre.botzung@grandest.fr] && The FOG Project Team
+  Alexandre BOTZUNG [alexandre@botzung.fr] && The FOG Project Team
 https://github.com/abotzung/foguefi / https://github.com/FOGProject/fogproject
-                   VERSION : 20240321 (Licence : GPL-3)
+                   VERSION : 20240812 (Licence : GPL-3)
 ============================================================================
 
 Ces notes résument la liste des fonctionnalités ajoutés dans FOG Project.

@@ -1,39 +1,9 @@
 #!/bin/bash
-. /usr/share/fog/lib/funcs.sh
+. /usr/share/foguefi/funcs.sh
 
 # FOG Status file : /tmp/status2.fog
 # Alert file : /tmp/alert_msg.txt
 
-
-
-
-
-getIPAddresses() {
-    read ipaddr <<< $(/sbin/ip -4 -o addr | awk -F'([ /])+' '/global/ {print $4}' | tr '[:space:]' '|' | sed -e 's/^[|]//g' -e 's/[|]$//g')
-    echo $ipaddr
-}
-
-fog_compName () {
-    ######## Donne le nom du pc à l'aide du serveur FOG ####
-    # Renvoie ***Unknown*** si l'ordinateur n'existe pas
-    MONuuid=$(dmidecode -s system-uuid)
-    MONuuid=${sysuuid,,}
-    MONmac=$(getMACAddresses)
-    DoCurl=$(curl -Lks --data "sysuuid=${MONuuid}&mac=$MONmac" "${web}service/hostname.php" -A '')
-
-    if [[ $DoCurl == *"#!ok="* ]]; then
-        IFS=$'\n'
-        for line in $DoCurl; do
-            if [[ $line == *"#!ok="* ]]; then
-                line2=$(echo "$line" | sed -r 's,\t,,g')
-                line2=${line2/=/|}
-                _compname=$(awk -F\|  '{print $2}' <<< $line2)
-            fi
-        done
-    else
-        _compname="***Unknown***"
-    fi
-}
 
 # Current Computername in FOG
 _compname=""
@@ -45,29 +15,99 @@ _compipaddr="$(getIPAddresses)"
 _curtask=""
 
 # Base URL of ttyd
-_remoteurl="http://${_compipaddr}:81"
+_remoteurl="https://${_compipaddr}:81"
 
-if [[ ! -r "/tmp/compname" ]]; then
-    fog_compName
-    echo "$_compname" > /tmp/compname
-else
-    _compname=$(cat /tmp/compname)
+_compname="$(hostname -s)"
+
+
+# Get the friendly task name : 
+FLAG_scheduledTask=0
+if [[ -n $type && -n $osid ]]; then
+    # Si $type est définie {up/down} && que $osid est définie (peut importe $mode), il y a quelque-chose à faire
+    #echo "Tache programmée (SERVEUR/PROGRAMMEE)"
+    FLAG_scheduledTask=1 # 1 = Tache programmée
 fi
-
-
+if [[ -z $type && -n $mode ]]; then
+    # Si $mode est définie {clamav, manreg...} && que $type n'est pas définie, il y a un mode à traîter
+    #echo "Tache programmée (MODE)"
+    FLAG_scheduledTask=2 # 2 = Mode programmée
+fi
+if [[ "$FLAG_scheduledTask" -ne 0 ]]; then
+    # Task/Mode detected, show a way to interrupt a Fog process
+    friendlyOperationName=''
+    case "$FLAG_scheduledTask" in
+        1) # up/down
+            case "$type" in
+                up)
+                    friendlyOperationName='\033[30;103m upload image \033[0m'
+                    ;;
+                down)
+                    if [[ "$mc" == "yes" ]]; then # Mode multicast
+                        friendlyOperationName='\033[30;42m download image (Multicast)\033[0m'
+                    else
+                        friendlyOperationName='\033[30;42m download image \033[0m'
+                    fi
+                    ;;
+                *)
+                    friendlyOperationName="?? $type"
+                    ;;
+            esac
+        ;;
+        2) # autoreg/manreg/clamav/memtest/...
+            case "$mode" in
+                sysinfo)
+                    friendlyOperationName='basic system information'
+                    ;;
+                clamav)
+                    friendlyOperationName='virus scan' # Deprecated by the FOG Team
+                    ;;
+                onlydebug)
+                    friendlyOperationName='debug'
+                    ;;
+                checkdisk)
+                    friendlyOperationName='test disk'
+                    ;;
+                badblocks)
+                    friendlyOperationName='disk surface test'
+                    ;;
+                photorec)
+                    friendlyOperationName='recover files'
+                    ;;
+                winpassreset)
+                    friendlyOperationName='\033[97;41m reset Windows passwords \033[0m'
+                    ;;
+                wipe)
+                    friendlyOperationName='\033[97;41m wipe hard disk \033[0m'
+                    ;;                                                
+                autoreg)
+                    friendlyOperationName='automatic inventory and registration'
+                    ;;
+                manreg)
+                    friendlyOperationName='manual inventory and registration'
+                    ;;
+                *)
+                    friendlyOperationName="??? $mode"
+                    ;;
+            esac
+            ;;
+    esac
+fi
 _curtask="$type"
 if [[ -z "$_curtask" ]]; then _curtask="$mode"; fi
 if [[ -z "$_curtask" ]]; then _curtask="$menutype"; fi
 if [[ -z "$_curtask" ]]; then _curtask="(none)"; fi
 
 # Color palette
+_showprogress=0
 case "$_curtask" in
     up)
         _syscol='bg-warning'
+        _showprogress=1
         ;;
     
     down)
         _syscol='bg-success'
+        _showprogress=1
         ;;
 
     *)
@@ -114,7 +154,10 @@ FINTEXTE
 if [[ "$_NO_STATUS" -eq 0 ]]; then
     echo "FOS:${fosstatus[5]}%"
 else
-    echo "FOS:${_curtask}"
+    if [[ -z "$friendlyOperationName" ]]; then
+        friendlyOperationName="None"
+    fi
+    echo "FOS:${friendlyOperationName}"
 fi
 cat <<FINTEXTE
 </title>
@@ -154,37 +197,39 @@ cat <<FINTEXTE
         <p>
 FINTEXTE
 
-echo "Operation <span class='badge ${_syscol}'>${_curtask}</span> on <b>${_compname}</b> (${_compipaddr})"
+echo "Operation <span class='badge ${_syscol}'>${friendlyOperationName}</span> on <b>${_compname}</b> (${_compipaddr})"
 cat <<FINTEXTE  
         </p>
         <hr />
       </header>
 FINTEXTE
 
-if [[ "$_NO_STATUS" -eq 0 ]]; then
-    echo '<div class="progress">'
-    echo "<div class='progress-bar progress-bar-striped progress-bar-animated ${_syscol}' role='progressbar' aria-valuenow='${fosstatus[5]}' aria-valuemin='0' aria-valuemax='100' style='width: ${fosstatus[5]}%;'></div>"
-    echo '</div>'
-    echo '</br><p>'
-    echo " Current speed : ${fosstatus[0]}&nbsp;&nbsp;"
-    echo " Remaining time : ${fosstatus[2]} (${fosstatus[1]} elapsed)"
-    echo '</p>'
+if [[ "$_showprogress" -eq 1 ]]; then
+    if [[ "$_NO_STATUS" -eq 0 ]]; then
+        echo '<div class="progress">'
+        echo "<div class='progress-bar progress-bar-striped progress-bar-animated ${_syscol}' role='progressbar' aria-valuenow='${fosstatus[5]}' aria-valuemin='0' aria-valuemax='100' style='width: ${fosstatus[5]}%;'></div>"
+        echo '</div>'
+        echo '</br><p>'
+        echo " Current speed : ${fosstatus[0]}&nbsp;&nbsp;"
+        echo " Remaining time : ${fosstatus[2]} (${fosstatus[1]} elapsed)"
+        echo '</p>'
+    else
+        echo '<div class="progress">'
+        echo "<div class='progress-bar progress-bar-striped progress-bar-animated ${_syscol}' role='progressbar' aria-valuenow='0' aria-valuemin='0' aria-valuemax='100' style='width: 0%;'></div>"
+        echo '</div>'
+        echo '</br><p>'
+        echo " Current speed : ???&nbsp;&nbsp;"
+        echo " Remaining time : ??? (??? elapsed)"
+        echo '</p>'
+    fi
 else
-    echo '<div class="progress">'
-    echo "<div class='progress-bar progress-bar-striped progress-bar-animated ${_syscol}' role='progressbar' aria-valuenow='0' aria-valuemin='0' aria-valuemax='100' style='width: 0%;'></div>"
-    echo '</div>'
-    echo '</br><p>'
-    echo " Current speed : ???&nbsp;&nbsp;"
-    echo " Remaining time : ??? (??? elapsed)"
-    echo '</p>'
+    echo '</br>'
 fi
 
-
-echo "<a href='${_remoteurl}?arg=FOSConsole' target="_blank"> <button type='button' class='btn btn-primary'>FOS Console</button></a>"
-echo "<a href='${_remoteurl}?arg=VNCServer' target="_blank"> <button type='button' class='btn btn-primary'>Restart VNC Server</button></a>"
+echo "<a href='${_remoteurl}?arg=2+FOS+screen+console' target="_blank"> <button type='button' class='btn btn-primary'>FOS Console</button></a>"
 
 echo "<p class='bs-component' style='float: right;'>"
-echo "<a href='${_remoteurl}?arg=RebootNow' target="_blank"> <button type='button' class='btn btn-danger'>Force Reboot</button></a>"
+echo "<a href='${_remoteurl}?arg=3+Force+reboot' target="_blank"> <button type='button' class='btn btn-danger'>Force Reboot</button></a>"
 echo '</p>'
 # ------ STATS Systèmes
 echo '<br><br><hr />'
