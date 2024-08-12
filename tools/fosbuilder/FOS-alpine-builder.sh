@@ -620,6 +620,36 @@ eenter 'Copy Linux, Shim and Grub to the release folder'
   } >> "$do_logfile" 2>&1
 eend 'Done' "$C_GREEN"
 
+eenter 'Generate SHA256 of Linux, Shim and Grub to the release folder'
+  _ERRMSG='FATAL : Generate SHA256 of Linux, Shim and Grub to the release folder'
+  {
+  _SHA256_LINUXKRNL="$(sha256sum "$(get_basedir_release)/linux_kernel" | cut -d" " -f1)"
+  _SHA256_SHIM="$(sha256sum "$(get_basedir_release)/shimx64.efi" | cut -d" " -f1)"
+  _SHA256_GRUB="$(sha256sum "$(get_basedir_release)/grubx64.efi" | cut -d" " -f1)"
+
+  # Test SHA256 before writing to disk
+  echo "$_SHA256_LINUXKRNL $(get_basedir_release)/linux_kernel" | sha256sum --check --status
+  if [[ $? != 0 ]]; then
+    _ERRMSG='FATAL : SHA256 verification failed for linux_kernel'
+    false; exit 1;
+  fi
+  echo "$_SHA256_SHIM $(get_basedir_release)/shimx64.efi" | sha256sum --check --status
+  if [[ $? != 0 ]]; then
+    _ERRMSG='FATAL : SHA256 verification failed for shimx64.efi'
+    false; exit 1;
+  fi
+  echo "$_SHA256_GRUB $(get_basedir_release)/grubx64.efi" | sha256sum --check --status
+  if [[ $? != 0 ]]; then
+    _ERRMSG='FATAL : SHA256 verification failed for grubx64.efi'
+    false; exit 1;
+  fi
+  # Tests okay, i write sha256 to the disk.
+  echo "$_SHA256_LINUXKRNL" > "$(get_basedir_release)/linux_kernel.sha256"
+  echo "$_SHA256_SHIM" > "$(get_basedir_release)/shimx64.efi.sha256"
+  echo "$_SHA256_GRUB" > "$(get_basedir_release)/grubx64.efi.sha256"
+  } >> "$do_logfile" 2>&1
+eend 'Done' "$C_GREEN"
+
 # So, at this point, we are successfuly downloaded alpine-chroo-install and FOS. Shall we begin the process ? 
 
 # TODO : Remove ME ! 
@@ -873,6 +903,33 @@ EOF
     mv "$(get_basedir_temp)"/fog_uefi.cpio.xz "$(get_basedir_release)"/fog_uefi.cpio.xz
     chmod +r "$(get_basedir_release)"/fog_uefi.cpio.xz
   eend "Done ($(du -hs --apparent-size "$(get_basedir_release)"/fog_uefi.cpio.xz | cut -f1))" "$C_GREEN"
+
+  eenter 'Generate SHA256 of fog_uefi.cpio.xz to the release folder'
+    _ERRMSG='FATAL : Generate SHA256 of the CPIO.xz to the release folder'
+    {
+    _SHA256_CPIO="$(sha256sum "$(get_basedir_release)/fog_uefi.cpio.xz" | cut -d" " -f1)"
+
+    # Test SHA256 before writing to disk
+    echo "$_SHA256_CPIO $(get_basedir_release)/fog_uefi.cpio.xz" | sha256sum --check --status
+    if [[ $? != 0 ]]; then
+      _ERRMSG='FATAL : SHA256 verification failed for fog_uefi.cpio.xz'
+      false; exit 1;
+    fi
+    # Tests okay, i write sha256 to the disk.
+    echo "$_SHA256_CPIO" > "$(get_basedir_release)/fog_uefi.cpio.xz.sha256"
+    } >> "$do_logfile" 2>&1
+  eend 'Done' "$C_GREEN"
+
+  eenter 'Generate a release file'
+    _ERRMSG='FATAL : Unable to generate a release file'
+    echo "export builddate=$(date +%Y%m%d)" > "$(get_basedir_release)/release"
+    _clientAPIversion="$(cat "$(get_basedir_src)"/_rootfs/usr/share/foguefi/funcs.sh |grep 'C_FOGUEFI_APIver='|cut -d'=' -f2|sed 's|[^0-9]||g')"
+    if [[ -z "$_clientAPIversion" ]]; then
+      _clientAPIversion='19700101'
+    fi
+    echo "export clientAPIversion='$_clientAPIversion'" >> "$(get_basedir_release)/release"
+  eend 'Done' "$C_GREEN"  
+
 
   _logecho "=> $(basename "$0") finished. Thanks for using my script."
   # FIXME : Refaire la liste des services communément utilisée dans FOGUefi (VNC, PWD, Earlyshell, ...)
