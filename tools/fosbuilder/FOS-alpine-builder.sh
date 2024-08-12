@@ -922,12 +922,14 @@ EOF
 
   eenter 'Generate a release file'
     _ERRMSG='FATAL : Unable to generate a release file'
-    echo "export builddate=$(date +%Y%m%d)" > "$(get_basedir_release)/release"
+    echo "builddate=$(date +%Y%m%d)" > "$(get_basedir_release)/release"
     _clientAPIversion="$(cat "$(get_basedir_src)"/_rootfs/usr/share/foguefi/funcs.sh |grep 'C_FOGUEFI_APIver='|cut -d'=' -f2|sed 's|[^0-9]||g')"
     if [[ -z "$_clientAPIversion" ]]; then
       _clientAPIversion='19700101'
     fi
-    echo "export clientAPIversion='$_clientAPIversion'" >> "$(get_basedir_release)/release"
+    echo "clientAPIversion='$_clientAPIversion'" >> "$(get_basedir_release)/release"
+    chmod +r "$(get_basedir_release)/release"
+    chmod +x "$(get_basedir_release)/release"
   eend 'Done' "$C_GREEN"  
 
 
