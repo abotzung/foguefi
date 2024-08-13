@@ -25,42 +25,87 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 #============================================================================ 
-# install.sh
-#   This script deploy FOGUefi on this system.
+#
+#---help---
+#    install.sh Copyright (C) 2024 Alexandre BOTZUNG <alexandre@botzung.fr>
+#
+#   This script deploy FOGUefi on this system. (version : 20240812)
 #
 #   This script :
-#    - Download *or* compiles a FOS Client 
-#    - Deploy Linux kernel, GRUB and SHIM (latest signed) into /tftpboot (provided by Canonical)
-#    - Deploy GrubBootMenu php files (copied into /var/www/?/fog)
-#    - If FOG works on HTTPS, reconfigure Apache2.
-#============================================================================
+#    - Download *or* make a FOGUefi Client 
+#    - Deploy Linux kernel, GRUB and SHIM into /tftpboot
+#      NOTE : Theses files are signed and provided by Canonical (C) in a binary form.
+#    - Deploy GRUB php files (copied into /var/www/?/fog)
+#    - Deploy GRUB menu files (copied into /tftpboot/grub)
+#    - Deploy FOGUefi files (copied into /tftpboot)
+#    - If FOG Server works on HTTPS, reconfigure Apache2 to allow web/grub.php to work on HTTP mode.
+#
+# Usage :
+#   ./install.sh
+#
+# Options :
+#   -b				Build files from the latest sources, rather than downloading it from Github
+#					NOTE : You will need a direct internet connection (no proxy server) and superuser power. 
+#
+#	-f				Force (re)installation of FOGUefi
+#
+#	-h				Show this help
+#
+#	-n				No internet flag ; This forces the installer to NOT use internet. (useful for air-gapped systems)
+#					NOTE : You need to download theses files into the root of this script : 
+#					https://github.com/abotzung/FOGUefi/releases/latest/download/fog_uefi.cpio.xz
+#					https://github.com/abotzung/FOGUefi/releases/latest/download/fog_uefi.cpio.xz.sha256
+#					https://github.com/abotzung/FOGUefi/releases/latest/download/grubx64.efi
+#					https://github.com/abotzung/FOGUefi/releases/latest/download/grubx64.efi.sha256
+#					https://github.com/abotzung/FOGUefi/releases/latest/download/linux_kernel
+#					https://github.com/abotzung/FOGUefi/releases/latest/download/linux_kernel.sha256
+#					https://github.com/abotzung/FOGUefi/releases/latest/download/release
+#					https://github.com/abotzung/FOGUefi/releases/latest/download/shimx64.efi
+#					https://github.com/abotzung/FOGUefi/releases/latest/download/shimx64.efi.sha256
+#
+#	-u				Unattended installation.
+#
+#    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+#    This is free software, and you are welcome to redistribute it
+#    under certain conditions; type `show c' for details.
+#
+#---help---
+#
+
+usage() {
+	sed -En '/^#---help---/,/^#---help---/p' "$0" | sed -E 's/^# ?//; 1d;$d;'
+}
+
+while getopts 'b:f:h:n:u' OPTION; do
+	case "$OPTION" in
+		b) _rebuildFOGUEFI=1;;
+		f) _forceINSTALL=1;;
+        u) _unattendedINSTALL=1;;
+        n) _noINTERNET=1;;
+		h) usage; exit 0;;
+		*) usage; exit 0;;
+	esac
+done
+
+: "${_rebuildFOGUEFI:=0}"
+: "${_forceINSTALL:=0}"
+: "${_noINTERNET:=0}"
+: "${_unattendedINSTALL:=0}"
 
 C_FOGUEFI_VERSION='20240812'
 
 # Oh ! Dirty !  ;
 source /opt/fog/.fogsettings
 
-basedir="$PWD"
+basedir="$(realpath "$PWD")"
+if [ "$basedir" == '/' ]; then
+	echo "FATAL : current directory is / !"
+	exit 1
+fi
+
 
 echo ' *** FOGUefi installer ***'
 echo ''
-
-if [[ ! -r "/opt/fog/.fogsettings" ]]; then
-	echo "ERROR ! No FOG installation detected on this server."
-	echo "Reason : file /opt/fog/.fogsettings not found."
-	exit 1
-fi
-if [[ -z "${docroot}${webroot}" ]]; then
-	echo "ERROR ! No FOG installation detected on this server."
-	echo "Reason : \$docroot / \$webroot is NULL"
-	exit 1
-fi
-if [[ -z "$hostname" ]]; then
-	echo "ERROR ! No FOG installation detected on this server."
-	echo "Reason : \$hostname is NULL"
-	exit 1
-fi
-
 echo -e "\033[97;44m                                                                     \033[0m"
 echo -e "\033[97;44m   ███████████████████████████████████████████████████████████████   \033[0m"
 echo -e "\033[97;44m   ███        ████    █████      ███  ████  █████████████████  ███   \033[0m"
@@ -82,6 +127,42 @@ echo -e "\033[97;44m   ████████████████ Released
 echo -e "\033[97;44m   ███████████████████████████████████████████████████████████████   \033[0m"
 echo -e "\033[97;44m                                                                     \033[0m"
 echo "   Installer version : $C_FOGUEFI_VERSION"
+echo ''
+if [[ ! -r "/opt/fog/.fogsettings" ]]; then
+	echo "ERROR ! No FOG Server installation detected on this server."
+	echo "Reason : file /opt/fog/.fogsettings not found."
+	exit 1
+fi
+if [[ -z "${docroot}${webroot}" ]]; then
+	echo "ERROR ! No FOG installation detected on this server."
+	echo "Reason : \$docroot / \$webroot is NULL"
+	exit 1
+fi
+if [[ -z "$hostname" ]]; then
+	echo "ERROR ! No FOG installation detected on this server."
+	echo "Reason : \$hostname is NULL"
+	exit 1
+fi
+if [ "$EUID" -ne 0 ]; then 
+	echo "FATAL : This script must be run as root."
+	exit 1
+fi
+
+#: "${_rebuildFOGUEFI:=0}"
+#: "${_forceINSTALL:=0}"
+#: "${_noINTERNET:=0}"
+
+#_noINTERNET = 1 ? => OFFLINE Installation
+#_noINTERNET = 0 ? 
+#	_rebuildFOGUEFI = 1 ? => FOG-rebuild.sh
+#	_rebuildFOGUEFI = 0 ? => Download from Github
+#	
+
+if [[ "$_noINTERNET" -eq 1 ]] && [[ "$_rebuildFOGUEFI" -eq 1 ]]; then
+	echo "FATAL : FOGUefi cannot be rebuild without an internet access"
+	exit 1
+fi
+
 echo ''
 echo "   This installer runs on server '$hostname' (${ipaddress})"
 echo "   FOG Path : ${docroot}${webroot}"
@@ -109,30 +190,127 @@ fi
 
 
 echo ''
-if [[ "$1" == "--unattended-yes" ]]; then
+if [[ "$_unattendedINSTALL" -eq 1 ]]; then
 	question='y'
-	echo ' --> UNATTENDED, STARTING IN 5 Sec. <--'
-	sleep 5
 else
 	read -n1 -p "Do you want to install FOGUefi (y/N) ? :" question
 fi
 echo ''
 if [[ "$question" == "y" || "$question" == "Y" ]]; then
-	# ========== Rebuild and patch FOG Stub "FOS" ==========
-	# Rebuild now, because if the patching failed, the installer stop early and dosent leave nasty traces into the system
-	echo "=> The installer now gonna patch FOG Stub. This can takes up to 20 minutes. Please wait..."
-	cd "$basedir/tools/fosbuilder" || exit
+	# ----------- FOGUEFI INSTALLATION BLOCK --------------------
+	if [[ "$_noINTERNET" -eq 1 ]]; then
+		# => OFFLINE Installation
+		# Verify files previously downloaded (NOINTERNET=1)
+		echo "=> The installer now gonna install FOGUefi (in OFFLINE mode). Please wait..."
+		_githubURL='https://github.com/abotzung/FOGUefi/releases/latest/download/'
+		FOGUEFI_files=('fog_uefi.cpio.xz' 'grubx64.efi' 'linux_kernel' 'shimx64.efi')
 
-	./FOS-alpine-builder.sh
+		# NOTE : "${basedir}/release" is a FILE
+		if [[ ! -r "${basedir}/release" ]]; then
+			echo "FATAL : The file ${basedir}/release is missing"
+			echo "You must download all missing files into the root of this script (${basedir})."
+			exit 1
+		fi
+		
+		builddate="$(cat "${basedir}"/release | grep 'builddate=' | cut -d'=' -f2|sed 's|[^0-9]||g')"
+		clientAPIversion="$(cat "${basedir}"/release | grep 'clientAPIversion=' | cut -d'=' -f2|sed 's|[^0-9]||g')"
 
-	if [ $? -ne "0" ]; then
-		echo "An ERROR has been detected and the installer cannot continue. Please share your console output logs with the devlopper, thank you !"
-		exit 1
+		echo "The current OFFLINE FOGUefi version is $builddate (Client API version : $clientAPIversion)"
+		
+		for _dlfiles in "${FOGUEFI_files[@]}"
+		do
+			_LeSHA256="$(cat "${basedir}/${_dlfiles}.sha256")"
+			echo "$_LeSHA256 ${basedir}/${_dlfiles}" | sha256sum --check --status
+			if [[ $? != 0 ]]; then
+				echo "FATAL : SHA256 verification failed for file ${basedir}/${_dlfiles}"
+				echo "You must redownload all corrupted files into the root of this script (${basedir})."
+				exit 1;
+			fi
+		done
+		for _dlfiles in "${FOGUEFI_files[@]}"
+		do
+			cp -f "${basedir}/${_dlfiles}" "/tftpboot/${_dlfiles}"
+			cp -f "${basedir}/${_dlfiles}.sha256" "/tftpboot/${_dlfiles}.sha256"
+		done
+		cp -f "${basedir}/release" "/tftpboot/foguefi_release"
+	else
+		if [[ "$_rebuildFOGUEFI" -eq 1 ]]; then
+			# => FOG-rebuild.sh
+			# ========== Rebuild and patch FOG Stub "FOS" ==========
+			# Rebuild now, because if the patching failed, the installer stop early and dosent leave nasty traces into the system
+			echo "=> The installer now gonna rebuild FOGUefi. This can takes up to 20 minutes. Please wait..."
+			cd "$basedir/tools/fosbuilder" || exit
+
+			./FOS-alpine-builder.sh
+
+			if [ $? -ne "0" ]; then
+				echo "An ERROR has been detected and the installer cannot continue. Please share your console output logs with the devlopper, thank you !"
+				exit 1
+			fi
+
+			cp ./release/release ./release/foguefi_release
+			cp -rf ./release/* /tftpboot/
+			cd "$basedir" || exit
+		else
+			# => Download from Github (default)
+			echo "=> The installer now gonna install FOGUefi (from the latest Github release). Please wait..."
+			_githubURL='https://github.com/abotzung/FOGUefi/releases/latest/download/'
+			FOGUEFI_files=('fog_uefi.cpio.xz' 'grubx64.efi' 'linux_kernel' 'shimx64.efi')
+
+			echo "Clean old downloaded files..."
+			[[ -r "${basedir}/release" ]] && rm "${basedir}/release"
+			for _dlfiles in "${FOGUEFI_files[@]}"
+			do
+				[[ -r "${basedir}/${_dlfiles}" ]] && rm "${basedir}/${_dlfiles}"
+				[[ -r "${basedir}/${_dlfiles}.sha256" ]] && rm "${basedir}/${_dlfiles}.sha256"
+			done
+
+
+			echo "Download the release manifest..."
+
+			curl --silent -o ${basedir}/release -kOL ${_githubURL}release >>/dev/null 2>&1
+			# NOTE : "${basedir}/release" is a FILE
+			if [[ ! -r "${basedir}/release" ]]; then
+				echo "FATAL : Could not download file ${_githubURL}release properly"
+				echo "Check your internet connection and retry."
+				exit 1
+			fi
+		
+			builddate="$(cat "${basedir}"/release | grep 'builddate=' | cut -d'=' -f2|sed 's|[^0-9]||g')"
+			clientAPIversion="$(cat "${basedir}"/release | grep 'clientAPIversion=' | cut -d'=' -f2|sed 's|[^0-9]||g')"
+
+			echo "The current FOGUefi version is $builddate (Client API version : $clientAPIversion)"
+			# TODO : HERE, add checks to verify the API version of grubbootmenu.class.php
+
+			echo "=> Download files, please wait..."
+			for _dlfiles in "${FOGUEFI_files[@]}"
+			do
+				#echo "Download ${basedir}/${_dlfiles}.sha256"
+				curl --silent -o "${basedir}/${_dlfiles}.sha256" -kOL "${_githubURL}${_dlfiles}.sha256" >>/dev/null 2>&1
+				#echo "Download ${basedir}/${_dlfiles}"
+				curl --silent -o "${basedir}/${_dlfiles}" -kOL "${_githubURL}${_dlfiles}" >>/dev/null 2>&1
+
+				_LeSHA256=$(cat "${basedir}/${_dlfiles}.sha256")
+				#echo " LE SUUUM:$_LeSHA256 (for ${basedir}/${_dlfiles}.sha256)"
+				echo "$_LeSHA256 ${basedir}/${_dlfiles}" | sha256sum --check --status
+				if [[ $? != 0 ]]; then
+					echo "FATAL : SHA256 verification failed for file ${basedir}/${_dlfiles}"
+					echo "Check your internet connection and retry."
+					exit 1;
+				fi
+			done
+			for _dlfiles in "${FOGUEFI_files[@]}"
+			do
+				cp -f "${basedir}/${_dlfiles}" "/tftpboot/${_dlfiles}"
+				cp -f "${basedir}/${_dlfiles}.sha256" "/tftpboot/${_dlfiles}.sha256"
+			done
+			cp -f "${basedir}/release" "/tftpboot/foguefi_release"
+		fi
 	fi
 
-	cp -rf ./release/* /tftpboot/
-	cd "$basedir" || exit
-
+	#  --------------- END OF INSTALLATION BLOCK
+	#
+	#  HERE, put the Apache installation block
 
 	echo "=> Copy GRUB files..."
 	cp -rf "$basedir"/src/tftpboot/* /tftpboot/

@@ -909,7 +909,7 @@ EOF
     {
     _SHA256_CPIO="$(sha256sum "$(get_basedir_release)/fog_uefi.cpio.xz" | cut -d" " -f1)"
 
-    # Test SHA256 before writing to disk
+    # Test SHA256 before writing to disk
     echo "$_SHA256_CPIO $(get_basedir_release)/fog_uefi.cpio.xz" | sha256sum --check --status
     if [[ $? != 0 ]]; then
       _ERRMSG='FATAL : SHA256 verification failed for fog_uefi.cpio.xz'
@@ -922,7 +922,7 @@ EOF
 
   eenter 'Generate a release file'
     _ERRMSG='FATAL : Unable to generate a release file'
-    echo "builddate=$(date +%Y%m%d)" > "$(get_basedir_release)/release"
+    echo "builddate='$(date +%Y%m%d)'" > "$(get_basedir_release)/release"
     _clientAPIversion="$(cat "$(get_basedir_src)"/_rootfs/usr/share/foguefi/funcs.sh |grep 'C_FOGUEFI_APIver='|cut -d'=' -f2|sed 's|[^0-9]||g')"
     if [[ -z "$_clientAPIversion" ]]; then
       _clientAPIversion='19700101'

@@ -9,3 +9,13 @@ tools/fosbuilder/buildtool
 # -- Ignore internal dev tools 
 tools/fosbuilder/_*.sh
 /_*.sh
+# -- Ignore downloaded files
+/fog_uefi.cpio.xz
+/fog_uefi.cpio.xz.sha256
+/grubx64.efi
+/grubx64.efi.sha256
+/linux_kernel
+/linux_kernel.sha256
+/release
+/shimx64.efi
+/shimx64.efi.sha256
