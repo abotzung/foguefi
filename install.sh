@@ -29,7 +29,7 @@
 #---help---
 #    install.sh Copyright (C) 2024 Alexandre BOTZUNG <alexandre@botzung.fr>
 #
-#   This script deploy FOGUefi on this system. (version : 20240812)
+# This script deploy FOGUefi on this system. (version : 20240812)
 #
 #   This script :
 #    - Download *or* make a FOGUefi Client 
@@ -44,6 +44,8 @@
 #   ./install.sh
 #
 # Options :
+#	-a				Skip Apache2 configuration (used if FOG has been installed with SSL support)
+#
 #   -b				Build files from the latest sources, rather than downloading it from Github
 #					NOTE : You will need a direct internet connection (no proxy server) and superuser power. 
 #
@@ -76,17 +78,19 @@ usage() {
 	sed -En '/^#---help---/,/^#---help---/p' "$0" | sed -E 's/^# ?//; 1d;$d;'
 }
 
-while getopts 'b:f:h:n:u' OPTION; do
+while getopts 'bfhnua' OPTION; do
 	case "$OPTION" in
 		b) _rebuildFOGUEFI=1;;
 		f) _forceINSTALL=1;;
         u) _unattendedINSTALL=1;;
         n) _noINTERNET=1;;
+		a) _skipAPACHECNFG=1;;
 		h) usage; exit 0;;
 		*) usage; exit 0;;
 	esac
 done
 
+: "${_skipAPACHECNFG:=0}"
 : "${_rebuildFOGUEFI:=0}"
 : "${_forceINSTALL:=0}"
 : "${_noINTERNET:=0}"
@@ -158,6 +162,18 @@ fi
 #	_rebuildFOGUEFI = 0 ? => Download from Github
 #	
 
+_mode=''
+if [[ "$_noINTERNET" -eq 1 ]]; then
+	_mode="Offline installation"
+else
+	if [[ "$_rebuildFOGUEFI" -eq 1 ]]; then
+		_mode="Rebuild FOGUefi"
+	else
+		_mode="Download from Github"
+	fi
+fi
+[[ "$_skipAPACHECNFG" -eq 1 ]] && _mode="$_mode (Skipping Apache configuration)"
+
 if [[ "$_noINTERNET" -eq 1 ]] && [[ "$_rebuildFOGUEFI" -eq 1 ]]; then
 	echo "FATAL : FOGUefi cannot be rebuild without an internet access"
 	exit 1
@@ -199,9 +215,7 @@ echo ''
 if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	# ----------- FOGUEFI INSTALLATION BLOCK --------------------
 	if [[ "$_noINTERNET" -eq 1 ]]; then
-		# => OFFLINE Installation
-		# Verify files previously downloaded (NOINTERNET=1)
-		echo "=> The installer now gonna install FOGUefi (in OFFLINE mode). Please wait..."
+		# => OFFLINE Installationif [[ "$_noINTERNET" -eq 1 ]]; thenonna install FOGUefi (in OFFLINE mode). Please wait..."
 		_githubURL='https://github.com/abotzung/FOGUefi/releases/latest/download/'
 		FOGUEFI_files=('fog_uefi.cpio.xz' 'grubx64.efi' 'linux_kernel' 'shimx64.efi')
 
@@ -323,7 +337,7 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	chown -R root:root "/images/@apk"
 	chmod -R 0755 "/images/@apk"
 
-	echo "=> Copy FOG PHP files..."
+	echo "=> Copy FOGUefi PHP files..."
 	cp -rf "$basedir"/src/fog/* "${docroot}${webroot}"
 	chown -R www-data:www-data "${docroot}${webroot}"
 	chmod -R 0755 "${docroot}${webroot}/lib"
@@ -334,28 +348,37 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	ln -s "${docroot}${webroot}/service/grub/grub.php" "${docroot}${webroot}/service/grub/grub_https.php"
 	chmod +x "${docroot}${webroot}/service/grub/grub_https.php"
 
-    echo "=> Configure Apache server..."
-    FOGApacheFile=$(grep -rnw '/management/other/ca.cert.der$ - ' /etc/apache2 | head -n1 | cut -f1 -d:)
-    FOGApachefileAlreadyPatched=$(grep -rnw 'Add made by foguefi patch' /etc/apache2 | head -n1 | cut -f1 -d:)
-    if [ -f "$FOGApacheFile" ]; then
-		if [ ! -f "$FOGApachefileAlreadyPatched" ]; then
-			# mkrandom ? ^^
-			TempConf=$(mktemp)
-			cat <<'EOF' >> "${TempConf}"
+	if [[ "$_skipAPACHECNFG" -eq 1 ]]; then
+		echo "=> Configure Apache server..."
+		# Configurying the Apache server is required by GRUB (in the case of using HTTPS on the front server).
+		#   This is a workaround to provide a valid configuration for GRUB, even if the webserver uses https.
+		# If not supported or ignored, GRUB cannot work.
+		#
+		FOGApacheFile=$(grep -rnw '/management/other/ca.cert.der$ - ' /etc/apache2 | head -n1 | cut -f1 -d:)
+		FOGApachefileAlreadyPatched=$(grep -rnw 'Add made by foguefi patch' /etc/apache2 | head -n1 | cut -f1 -d:)
+		if [ -f "$FOGApacheFile" ]; then
+			if [ ! -f "$FOGApachefileAlreadyPatched" ]; then
+				cp -f "$FOGApacheFile" "${FOGApacheFile}.bak_foguefi"
+				# mkrandom ? ^^
+				TempConf=$(mktemp)
+				cat <<'EOF' >> "${TempConf}"
 # -=-=-=- Add made by foguefi patch    
 RewriteRule /service/grub/grub.php$ - [L]        # Needed for GRUB (unable to fetch ressources HTTPS mode)
 RewriteRule /service/grub/tftp/.*$ - [L]        # Needed for GRUB
 # -=-=-=--=-=-=-=-=-=-
 EOF
-			sed -i "/RewriteRule \/management\/other\/ca.cert.der/r ${TempConf}" "$FOGApacheFile"
-			rm "${TempConf}"
-			service apache2 reload
+				sed -i "/RewriteRule \/management\/other\/ca.cert.der/r ${TempConf}" "$FOGApacheFile"
+				rm "${TempConf}"
+				service apache2 reload
+			else
+				echo "INFO : FOG Apache2 configuration file appears to be already patched."
+			fi
 		else
-			echo "INFO : FOG Apache2 configuration file appears to be already patched, ignoring..."
+			echo "INFO : FOG Apache2 configuration file appears to be in HTTP mode."
 		fi
-    else
-        echo "INFO : FOG Apache2 configuration file appears to be in HTTP mode, ignoring..."
-    fi
+	else
+		echo "=> Skip Apache server configuration..."
+	fi
     
     # Buxfix : https://github.com/abotzung/foguefi/issues/4
     touch "${docroot}${webroot}fog_login_accepted.log"
