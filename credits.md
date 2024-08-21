@@ -1,8 +1,10 @@
 # Credits
 
-FOGUefi is build with the help of others tools, notably : 
+FOGUefi is build with the help of others peoples and tools, notably : 
 
 ---
+
+- **Baobabrom** : For your countless hours of debugging.
 
 - [The FOG Project](https://fogproject.org/) : For this superb tool
   (Parts used in FOS, scripts and logos)
@@ -22,4 +24,6 @@ FOGUefi is build with the help of others tools, notably :
 - [Mcder3](https://github.com/KaOSx/midna)
   (Icons)
 
-- Font Awesome (Licence : SIL OFL 1.1) : <https://fontawesome.com/>
+- [Font Awesome](https://fontawesome.com/) (Licence : SIL OFL 1.1) : Icons
+
+- [La Région Grand-Est](https://www.grandest.fr/)

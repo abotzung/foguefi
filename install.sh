@@ -97,7 +97,6 @@ else
 	_rebuildFOGUEFI=1
 	_forceINSTALL=1
 	_unattendedINSTALL=1
-
 fi
 
 : "${_skipAPACHECNFG:=0}"
