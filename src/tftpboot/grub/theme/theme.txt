@@ -29,12 +29,13 @@ terminal-border: "4"
   top = 15%
   width = 54%
   height = 353 # Doit être un multiple de item_height
-  item_color = "#FFFFFF"            # Couleur de l'item à l'écran (texte)
+  item_color = "#AAAAAA"            # Couleur de l'item à l'écran (texte)
   selected_item_color = "#FFFFFF"   # Couleur de l'item sélectionné à l'écran (texte)
   icon_width = 16
   icon_height = 16
   item_icon_space = 12 # Décalage (en px) entre l'icone et le text item
-  item_height = 44
+  
+  item_height = 44 
   item_spacing = 0
   item_padding = 0
   item_pixmap_style = "box_*.png"
@@ -71,3 +72,4 @@ terminal-border: "4"
   align = "center"
   color = "#222D32"
 }
+

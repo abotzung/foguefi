@@ -1,4 +1,6 @@
 #!/bin/bash
+C_FOGUEFI_VERSION='20240820'
+C_FOGUEFI_APIVERSION='20240806'
 #============================================================================
 #         F O G U E F I - Free Opensource Ghost, batteries included
 # An unofficial portage of GRUB and FOS for an easy useage of FOG Server on 
@@ -8,8 +10,8 @@
 #
 # Author       : Alexandre BOTZUNG [alexandre.botzung@grandest.fr]
 # Author       : The FOG Project team (https://github.com/FOGProject/fogproject)
-# Version      : 20240811
-# Licence      : http://opensource.org/licenses/gpl-3.0
+# Version      : 20240820
+# Licence      : GPL-3 (http://opensource.org/licenses/gpl-3.0)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,10 +29,6 @@
 #============================================================================ 
 #
 #---help---
-#    install.sh Copyright (C) 2024 Alexandre BOTZUNG <alexandre@botzung.fr>
-#
-# This script deploy FOGUefi on this system. (version : 20240812)
-#
 #   This script :
 #    - Download *or* make a FOGUefi Client 
 #    - Deploy Linux kernel, GRUB and SHIM into /tftpboot
@@ -53,8 +51,8 @@
 #
 #	-h				Show this help
 #
-#	-n				No internet flag ; This forces the installer to NOT use internet. (useful for air-gapped systems)
-#					NOTE : You need to download theses files into the root of this script : 
+#	-n				No internet flag ; This forces the installer to NOT use internet. (useful for air-gapped networks)
+#					NOTE : You need to download theses files into the root directory of this script : 
 #					https://github.com/abotzung/FOGUefi/releases/latest/download/fog_uefi.cpio.xz
 #					https://github.com/abotzung/FOGUefi/releases/latest/download/fog_uefi.cpio.xz.sha256
 #					https://github.com/abotzung/FOGUefi/releases/latest/download/grubx64.efi
@@ -75,28 +73,38 @@
 #
 
 usage() {
+	echo "    install.sh - 2024 Alexandre BOTZUNG <alexandre@botzung.fr>"
+	echo ''
+	echo " This script deploy FOGUefi on this system. (version : $C_FOGUEFI_VERSION)"
+	echo ''
 	sed -En '/^#---help---/,/^#---help---/p' "$0" | sed -E 's/^# ?//; 1d;$d;'
 }
 
-while getopts 'bfhnua' OPTION; do
-	case "$OPTION" in
-		b) _rebuildFOGUEFI=1;;
-		f) _forceINSTALL=1;;
-        u) _unattendedINSTALL=1;;
-        n) _noINTERNET=1;;
-		a) _skipAPACHECNFG=1;;
-		h) usage; exit 0;;
-		*) usage; exit 0;;
-	esac
-done
+if [[ "$1" != "--unattended-yes" ]]; then
+	while getopts 'bfhnua' OPTION; do
+		case "$OPTION" in
+			b) _rebuildFOGUEFI=1;;
+			f) _forceINSTALL=1;;
+			u) _unattendedINSTALL=1;;
+			n) _noINTERNET=1;;
+			a) _skipAPACHECNFG=1;;
+			h) usage; exit 0;;
+			*) usage; exit 0;;
+		esac
+	done
+else
+	# Compatibility mode with Jenkins ; rebuild from source, force install and unattended install
+	_rebuildFOGUEFI=1
+	_forceINSTALL=1
+	_unattendedINSTALL=1
+
+fi
 
 : "${_skipAPACHECNFG:=0}"
 : "${_rebuildFOGUEFI:=0}"
 : "${_forceINSTALL:=0}"
 : "${_noINTERNET:=0}"
 : "${_unattendedINSTALL:=0}"
-
-C_FOGUEFI_VERSION='20240812'
 
 # Oh ! Dirty !  ;
 source /opt/fog/.fogsettings
@@ -130,7 +138,6 @@ echo -e "\033[97;44m   ███████████████████
 echo -e "\033[97;44m   ████████████████ Released under GPL Version 3 █████████████████   \033[0m"
 echo -e "\033[97;44m   ███████████████████████████████████████████████████████████████   \033[0m"
 echo -e "\033[97;44m                                                                     \033[0m"
-echo "   Installer version : $C_FOGUEFI_VERSION"
 echo ''
 if [[ ! -r "/opt/fog/.fogsettings" ]]; then
 	echo "ERROR ! No FOG Server installation detected on this server."
@@ -148,17 +155,13 @@ if [[ -z "$hostname" ]]; then
 	exit 1
 fi
 if [ "$EUID" -ne 0 ]; then 
-	echo "FATAL : This script must be run as root."
+	echo "FATAL : This installer must be run as root."
 	exit 1
 fi
 
-#: "${_rebuildFOGUEFI:=0}"
-#: "${_forceINSTALL:=0}"
-#: "${_noINTERNET:=0}"
-
 #_noINTERNET = 1 ? => OFFLINE Installation
 #_noINTERNET = 0 ? 
-#	_rebuildFOGUEFI = 1 ? => FOG-rebuild.sh
+#	_rebuildFOGUEFI = 1 ? => FOS-alpine-builder.sh
 #	_rebuildFOGUEFI = 0 ? => Download from Github
 #	
 
@@ -179,17 +182,20 @@ if [[ "$_noINTERNET" -eq 1 ]] && [[ "$_rebuildFOGUEFI" -eq 1 ]]; then
 	exit 1
 fi
 
+echo "   Installer version : $C_FOGUEFI_VERSION (mode: $_mode)"
 echo ''
-echo "   This installer runs on server '$hostname' (${ipaddress})"
+echo "   This installer runs on server '${hostname}/${ipaddress}'"
 echo "   FOG Path : ${docroot}${webroot}"
 echo ''
 echo '   This installer extends the FOG PXE by installing shim, grub, GNU/Linux signed and a custom FOG "FOS" stub'
+echo '    allowing FOGUefi to be booted on a computer with Secure Boot enabled. (FOGUefi is a flavor of FOG "FOS")'
+echo ''
 echo '   It consists of 2 parts : '
 echo '   - Files required for PXE (shim/GRUB/Linux kernel, all signed by Canonical), and FOG Stub patched ("FOGUefi")'
 echo '   - PHP Files for handling newer menus for GRUB'
 echo ''
-echo ' This patch are free software; the exact distribution terms for each program are described in the individual files.'
-echo ' This patch comes with ABSOLUTELY NO WARRANTY, to the extent permitted by applicable law.'
+echo ' This installer are free software; the exact distribution terms for each program are described in the individual files.'
+echo ' This installer comes with ABSOLUTELY NO WARRANTY, to the extent permitted by applicable law.'
 echo ''
 echo ''
 
@@ -215,7 +221,7 @@ echo ''
 if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	# ----------- FOGUEFI INSTALLATION BLOCK --------------------
 	if [[ "$_noINTERNET" -eq 1 ]]; then
-		# => OFFLINE Installationif [[ "$_noINTERNET" -eq 1 ]]; thenonna install FOGUefi (in OFFLINE mode). Please wait..."
+		# => OFFLINE Installation
 		_githubURL='https://github.com/abotzung/FOGUefi/releases/latest/download/'
 		FOGUEFI_files=('fog_uefi.cpio.xz' 'grubx64.efi' 'linux_kernel' 'shimx64.efi')
 
@@ -231,6 +237,18 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 
 		echo "The current OFFLINE FOGUefi version is $builddate (Client API version : $clientAPIversion)"
 		
+		if [[ "$C_FOGUEFI_APIVERSION" != "$clientAPIversion" ]]; then
+			echo "FATAL : The API version of this installer is incompatible with this release of FOGUefi."
+			echo " You must update your installer with theses commands : "
+			echo " git clean -fd"
+			echo " git reset --hard"
+			echo " git pull"
+			echo ""
+			echo "(FATAL_API_MISMATCH : Installer API version=$C_FOGUEFI_APIVERSION / FOGUefi version=$clientAPIversion)"
+			echo ""
+			exit 1
+		fi
+
 		for _dlfiles in "${FOGUEFI_files[@]}"
 		do
 			_LeSHA256="$(cat "${basedir}/${_dlfiles}.sha256")"
@@ -258,10 +276,12 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 			./FOS-alpine-builder.sh
 
 			if [ $? -ne "0" ]; then
-				echo "An ERROR has been detected and the installer cannot continue. Please share your console output logs with the devlopper, thank you !"
+				echo "An ERROR has been detected and the installer cannot continue."
+				echo " Please share the log in ./tools/fosbuilder/installer.log, your console output logs with the developper, thank you !"
 				exit 1
 			fi
-
+			chmod -R +r ./release/release
+			chmod -R +x ./release/release
 			cp ./release/release ./release/foguefi_release
 			cp -rf ./release/* /tftpboot/
 			cd "$basedir" || exit
@@ -279,7 +299,6 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 				[[ -r "${basedir}/${_dlfiles}.sha256" ]] && rm "${basedir}/${_dlfiles}.sha256"
 			done
 
-
 			echo "Download the release manifest..."
 
 			curl --silent -o ${basedir}/release -kOL ${_githubURL}release >>/dev/null 2>&1
@@ -294,7 +313,17 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 			clientAPIversion="$(cat "${basedir}"/release | grep 'clientAPIversion=' | cut -d'=' -f2|sed 's|[^0-9]||g')"
 
 			echo "The current FOGUefi version is $builddate (Client API version : $clientAPIversion)"
-			# TODO : HERE, add checks to verify the API version of grubbootmenu.class.php
+			if [[ "$C_FOGUEFI_APIVERSION" != "$clientAPIversion" ]]; then
+				echo "FATAL : The API version of this installer is incompatible with this release of FOGUefi."
+				echo " You must update your installer with theses commands : "
+				echo " git clean -fd"
+				echo " git reset --hard"
+				echo " git pull"
+				echo ""
+				echo "(FATAL_API_MISMATCH : Installer API version=$C_FOGUEFI_APIVERSION / FOGUefi version=$clientAPIversion)"
+				echo ""
+				exit 1
+			fi
 
 			echo "=> Download files, please wait..."
 			for _dlfiles in "${FOGUEFI_files[@]}"
@@ -348,7 +377,7 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	ln -s "${docroot}${webroot}/service/grub/grub.php" "${docroot}${webroot}/service/grub/grub_https.php"
 	chmod +x "${docroot}${webroot}/service/grub/grub_https.php"
 
-	if [[ "$_skipAPACHECNFG" -eq 1 ]]; then
+	if [[ "$_skipAPACHECNFG" -eq 0 ]]; then
 		echo "=> Configure Apache server..."
 		# Configurying the Apache server is required by GRUB (in the case of using HTTPS on the front server).
 		#   This is a workaround to provide a valid configuration for GRUB, even if the webserver uses https.
