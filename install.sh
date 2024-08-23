@@ -3,9 +3,9 @@ C_FOGUEFI_VERSION='20240820'
 C_FOGUEFI_APIVERSION='20240806'
 #============================================================================
 #         F O G U E F I - Free Opensource Ghost, batteries included
-# An unofficial portage of GRUB and FOS for an easy useage of FOG Server on 
+# An unofficial portage of GRUB and FOS for an easy useage of FOG Server on
 #                      Secure Boot enabled computers.
-# 
+#
 #             FOGUefi (https://github.com/abotzung/foguefi)
 #
 # Author       : Alexandre BOTZUNG [alexandre.botzung@grandest.fr]
@@ -26,11 +26,11 @@ C_FOGUEFI_APIVERSION='20240806'
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-#============================================================================ 
+#============================================================================
 #
 #---help---
-#   This script :
-#    - Download *or* make a FOGUefi Client 
+# This script :
+#    - Download *or* make a FOGUefi Client
 #    - Deploy Linux kernel, GRUB and SHIM into /tftpboot
 #      NOTE : Theses files are signed and provided by Canonical (C) in a binary form.
 #    - Deploy GRUB php files (copied into /var/www/?/fog)
@@ -42,17 +42,16 @@ C_FOGUEFI_APIVERSION='20240806'
 #   ./install.sh
 #
 # Options :
-#	-a				Skip Apache2 configuration (used if FOG has been installed with SSL support)
+#	-a				Skip Apache2 configuration
 #
-#   -b				Build files from the latest sources, rather than downloading it from Github
-#					NOTE : You will need a direct internet connection (no proxy server) and superuser power. 
+#	-b				Build files from the latest sources, rather than downloading it from Github
 #
 #	-f				Force (re)installation of FOGUefi
 #
 #	-h				Show this help
 #
 #	-n				No internet flag ; This forces the installer to NOT use internet. (useful for air-gapped networks)
-#					NOTE : You need to download theses files into the root directory of this script : 
+#					NOTE : You need to download theses files into the root directory of this script :
 #					https://github.com/abotzung/FOGUefi/releases/latest/download/fog_uefi.cpio.xz
 #					https://github.com/abotzung/FOGUefi/releases/latest/download/fog_uefi.cpio.xz.sha256
 #					https://github.com/abotzung/FOGUefi/releases/latest/download/grubx64.efi
@@ -65,17 +64,17 @@ C_FOGUEFI_APIVERSION='20240806'
 #
 #	-u				Unattended installation.
 #
-#    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
-#    This is free software, and you are welcome to redistribute it
-#    under certain conditions; type `show c' for details.
+#This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+#This is free software, and you are welcome to redistribute it
+#under certain conditions; type `show c' for details.
 #
 #---help---
 #
 
 usage() {
-	echo "    install.sh - 2024 Alexandre BOTZUNG <alexandre@botzung.fr>"
+	echo " install.sh - 2024 Alexandre BOTZUNG <alexandre@botzung.fr>"
 	echo ''
-	echo " This script deploy FOGUefi on this system. (version : $C_FOGUEFI_VERSION)"
+	echo " This script install FOGUefi on this system. (version : $C_FOGUEFI_VERSION)"
 	echo ''
 	sed -En '/^#---help---/,/^#---help---/p' "$0" | sed -E 's/^# ?//; 1d;$d;'
 }
@@ -93,8 +92,7 @@ if [[ "$1" != "--unattended-yes" ]]; then
 		esac
 	done
 else
-	# Compatibility mode with Jenkins ; rebuild from source, force install and unattended install
-	_rebuildFOGUEFI=1
+	_rebuildFOGUEFI=0
 	_forceINSTALL=1
 	_unattendedINSTALL=1
 fi
@@ -230,12 +228,12 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 			echo "You must download all missing files into the root of this script (${basedir})."
 			exit 1
 		fi
-		
+
 		builddate="$(cat "${basedir}"/release | grep 'builddate=' | cut -d'=' -f2|sed 's|[^0-9]||g')"
 		clientAPIversion="$(cat "${basedir}"/release | grep 'clientAPIversion=' | cut -d'=' -f2|sed 's|[^0-9]||g')"
 
 		echo "The current OFFLINE FOGUefi version is $builddate (Client API version : $clientAPIversion)"
-		
+
 		if [[ "$C_FOGUEFI_APIVERSION" != "$clientAPIversion" ]]; then
 			echo "FATAL : The API version of this installer is incompatible with this release of FOGUefi."
 			echo " You must update your installer with theses commands : "
@@ -307,7 +305,7 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 				echo "Check your internet connection and retry."
 				exit 1
 			fi
-		
+
 			builddate="$(cat "${basedir}"/release | grep 'builddate=' | cut -d'=' -f2|sed 's|[^0-9]||g')"
 			clientAPIversion="$(cat "${basedir}"/release | grep 'clientAPIversion=' | cut -d'=' -f2|sed 's|[^0-9]||g')"
 
@@ -390,7 +388,7 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 				# mkrandom ? ^^
 				TempConf=$(mktemp)
 				cat <<'EOF' >> "${TempConf}"
-# -=-=-=- Add made by foguefi patch    
+# -=-=-=- Add made by foguefi patch
 RewriteRule /service/grub/grub.php$ - [L]        # Needed for GRUB (unable to fetch ressources HTTPS mode)
 RewriteRule /service/grub/tftp/.*$ - [L]        # Needed for GRUB
 # -=-=-=--=-=-=-=-=-=-
@@ -407,19 +405,20 @@ EOF
 	else
 		echo "=> Skip Apache server configuration..."
 	fi
-    
-    # Buxfix : https://github.com/abotzung/foguefi/issues/4
-    touch "${docroot}${webroot}fog_login_accepted.log"
-    touch "${docroot}${webroot}fog_login_failed.log"
-    chmod 0200 "${docroot}${webroot}fog_login_accepted.log"
-    chmod 0200 "${docroot}${webroot}fog_login_failed.log"
-    chown www-data:www-data "${docroot}${webroot}fog_login_accepted.log"
-    chown www-data:www-data "${docroot}${webroot}fog_login_failed.log"
-    
+
+
+	# Buxfix : https://github.com/abotzung/foguefi/issues/4
+	touch "${docroot}${webroot}fog_login_accepted.log"
+	touch "${docroot}${webroot}fog_login_failed.log"
+	chmod 0200 "${docroot}${webroot}fog_login_accepted.log"
+	chmod 0200 "${docroot}${webroot}fog_login_failed.log"
+	chown www-data:www-data "${docroot}${webroot}fog_login_accepted.log"
+	chown www-data:www-data "${docroot}${webroot}fog_login_failed.log"
+
 	echo "==== Installation done ! ===="
 	echo ''
 	echo -e " You must change your PXE Boot file to \033[30;42m shimx64.efi \033[0m in your DHCP Server to use FOGUefi. (option 67)"
-	echo ''	
+	echo ''
 	cd "$basedir" || exit
 else
 	echo "Goodbye"
