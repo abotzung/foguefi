@@ -40,22 +40,22 @@ cd foguefi
    ./install.sh
 
  Options :
-	-a				Skip Apache2 configuration
-	-b				Build files from the latest sources, rather than downloading it from Github
-	-f				Force (re)installation of FOGUefi
-	-h				Show this help
-	-u				Unattended installation.
-	-n				No internet flag ; This forces the installer to NOT use internet. (useful for air-gapped networks)
-					NOTE : You need to download theses files into the root directory of this script :
-					https://github.com/abotzung/FOGUefi/releases/latest/download/fog_uefi.cpio.xz
-					https://github.com/abotzung/FOGUefi/releases/latest/download/fog_uefi.cpio.xz.sha256
-					https://github.com/abotzung/FOGUefi/releases/latest/download/grubx64.efi
-					https://github.com/abotzung/FOGUefi/releases/latest/download/grubx64.efi.sha256
-					https://github.com/abotzung/FOGUefi/releases/latest/download/linux_kernel
-					https://github.com/abotzung/FOGUefi/releases/latest/download/linux_kernel.sha256
-					https://github.com/abotzung/FOGUefi/releases/latest/download/release
-					https://github.com/abotzung/FOGUefi/releases/latest/download/shimx64.efi
-					https://github.com/abotzung/FOGUefi/releases/latest/download/shimx64.efi.sha256
+	-a	Skip Apache2 configuration
+	-b	Build files from the latest sources, rather than downloading it from Github
+	-f	Force (re)installation of FOGUefi
+	-h	Show this help
+	-u	Unattended installation.
+	-n	No internet flag ; This forces the installer to NOT use internet. (useful for air-gapped networks)
+		NOTE : You need to download theses files into the root directory of this script :
+		https://github.com/abotzung/FOGUefi/releases/latest/download/fog_uefi.cpio.xz
+		https://github.com/abotzung/FOGUefi/releases/latest/download/fog_uefi.cpio.xz.sha256
+		https://github.com/abotzung/FOGUefi/releases/latest/download/grubx64.efi
+		https://github.com/abotzung/FOGUefi/releases/latest/download/grubx64.efi.sha256
+		https://github.com/abotzung/FOGUefi/releases/latest/download/linux_kernel
+		https://github.com/abotzung/FOGUefi/releases/latest/download/linux_kernel.sha256
+		https://github.com/abotzung/FOGUefi/releases/latest/download/release
+		https://github.com/abotzung/FOGUefi/releases/latest/download/shimx64.efi
+		https://github.com/abotzung/FOGUefi/releases/latest/download/shimx64.efi.sha256
 ```
 
 
