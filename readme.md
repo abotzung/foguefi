@@ -21,6 +21,7 @@ FOGUefi is a fork of [FOS](https://github.com/fogProject/fos), modified to run o
 
 - Standard installation (recommended) : 
 ```bash
+sudo -i
 cd /opt
 git clone https://github.com/abotzung/foguefi
 cd foguefi
@@ -29,6 +30,7 @@ cd foguefi
 
 - Installing FOGUefi from latest sources ("edge") : 
 ```bash
+sudo -i
 cd /opt
 git clone https://github.com/abotzung/foguefi
 cd foguefi
