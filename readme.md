@@ -84,7 +84,7 @@ FOGUefi was born in december 2019, because I couldn't quickly and easily use FOG
 
 ### I want to modify the GRUB boot menu; what should I modify?
 
-The `/tftpboot/grub/custom.cfg` file can be edited to configure the GRUB boot menu. More information can be found in the [documentation](https://github.com/abotzung/foguefi/blob/main/documentation.md).
+The `/tftpboot/grub/grub.cfg` file can be edited to configure the GRUB boot menu. More information can be found in the [documentation](https://github.com/abotzung/foguefi/blob/main/documentation.md).
 
 ### Credits
 
