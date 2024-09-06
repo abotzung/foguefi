@@ -352,6 +352,9 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	#
 	#  HERE, put the Apache installation block
 
+	# Workaround - shim in certain case, with certain specific computers will load a bad second loader : https://github.com/rhboot/shim/issues/649
+	[[ -r "/tftpboot/grubx64.efi" ]] && ln "/tftpboot/grubx64.efi" "/tftpboot/$(printf "\xC2")Onboard"
+
 	echo "=> Copy GRUB files..."
 	cp -rf "$basedir"/src/tftpboot/* /tftpboot/
 	chown -R fogproject:root /tftpboot
