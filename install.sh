@@ -358,7 +358,7 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	chmod -R 0755 /tftpboot
 
     echo "=> Create '@apk' to /images + settings permissions..."
-    [[ ! -d "${docroot}${webroot}/service/grub/tftp" ]] && mkdir "/images/@apk"
+    [[ ! -d "/images/@apk" ]] && mkdir "/images/@apk"
 	# NOTE : @apk MUST BELONG to root
 	chown -R root:root "/images/@apk"
 	chmod -R 0755 "/images/@apk"
@@ -388,7 +388,7 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 				# mkrandom ? ^^
 				TempConf=$(mktemp)
 				cat <<'EOF' >> "${TempConf}"
-# -=-=-=- Add made by foguefi patch
+# -=-=-=- Add made by FOGUefi patch
 RewriteRule /service/grub/grub.php$ - [L]        # Needed for GRUB (unable to fetch ressources HTTPS mode)
 RewriteRule /service/grub/tftp/.*$ - [L]        # Needed for GRUB
 # -=-=-=--=-=-=-=-=-=-
