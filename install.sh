@@ -1,5 +1,5 @@
 #!/bin/bash
-C_FOGUEFI_VERSION='20240820'
+C_FOGUEFI_VERSION='20240906'
 C_FOGUEFI_APIVERSION='20240806'
 #============================================================================
 #         F O G U E F I - Free Opensource Ghost, batteries included
@@ -10,7 +10,7 @@ C_FOGUEFI_APIVERSION='20240806'
 #
 # Author       : Alexandre BOTZUNG [alexandre.botzung@grandest.fr]
 # Author       : The FOG Project team (https://github.com/FOGProject/fogproject)
-# Version      : 20240820
+# Version      : ($C_FOGUEFI_VERSION)
 # Licence      : GPL-3 (http://opensource.org/licenses/gpl-3.0)
 #
 # This program is free software: you can redistribute it and/or modify
