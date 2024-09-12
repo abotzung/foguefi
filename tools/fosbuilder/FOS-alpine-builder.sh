@@ -452,7 +452,7 @@ git version >> "$do_logfile" 2>&1
 
 # Check if we are root
 if [ "$(id -u)" -ne 0 ]; then 
-  _ERRMSG='This script must be run as root.'; exit 1
+  _ERRMSG='This script must be run as root.'; false ; exit 1
 fi
 
 # Est-ce que je nettoie les dossiers de travail avant ? Par défaut : OUI
@@ -477,7 +477,7 @@ if [ -d "$(get_current_path)/src" ]; then
   cp -rv "$(get_current_path)/src" "$(get_basedir_sources)" >> "$do_logfile" 2>&1
 else
   _ERRMSG="FATAL: The folder $(get_current_path)/src does not exist."
-  exit 1
+  false ; exit 1
 fi
 
 # Are we online ? If yes, please download all theses precious ressources needed :)
