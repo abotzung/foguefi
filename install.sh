@@ -10,7 +10,7 @@ C_FOGUEFI_APIVERSION='20240806'
 #
 # Author       : Alexandre BOTZUNG [alexandre.botzung@grandest.fr]
 # Author       : The FOG Project team (https://github.com/FOGProject/fogproject)
-# Version      : ($C_FOGUEFI_VERSION)
+# Version      : (see $C_FOGUEFI_VERSION)
 # Licence      : GPL-3 (http://opensource.org/licenses/gpl-3.0)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -102,6 +102,8 @@ fi
 : "${_forceINSTALL:=0}"
 : "${_noINTERNET:=0}"
 : "${_unattendedINSTALL:=0}"
+ipaddress='' # else ShellCheck freaksout
+
 
 # Oh ! Dirty !  ;
 source /opt/fog/.fogsettings
@@ -353,8 +355,16 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	#  HERE, put the Apache installation block
 
 	# Workaround - shim in certain case, with certain specific computers will load a bad second loader : https://github.com/rhboot/shim/issues/649
-	[[ -r "/tftpboot/grubx64.efi" ]] && ln "/tftpboot/grubx64.efi" "/tftpboot/$(printf "\xC2")Onboard"
-
+	if [[ -r "/tftpboot/grubx64.efi" ]]; then
+		for val in {64..78}
+			do
+				dec2hex="$(printf %x "$val")"
+				ln "/tftpboot/grubx64.efi" "/tftpboot/$(printf "\x$dec2hex")Onboard"
+			done
+	else
+		echo '/tftpboot/grubx64.efi does not exist, workaround for shim ignored'
+	fi
+	
 	echo "=> Copy GRUB files..."
 	cp -rf "$basedir"/src/tftpboot/* /tftpboot/
 	chown -R fogproject:root /tftpboot
