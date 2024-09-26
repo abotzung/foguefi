@@ -1,5 +1,5 @@
 #!/bin/bash
-C_FOGUEFI_VERSION='20240820'
+C_FOGUEFI_VERSION='20240926'
 C_FOGUEFI_APIVERSION='20240806'
 #============================================================================
 #         F O G U E F I - Free Opensource Ghost, batteries included
@@ -10,7 +10,7 @@ C_FOGUEFI_APIVERSION='20240806'
 #
 # Author       : Alexandre BOTZUNG [alexandre.botzung@grandest.fr]
 # Author       : The FOG Project team (https://github.com/FOGProject/fogproject)
-# Version      : 20240820
+# Version      : (see $C_FOGUEFI_VERSION)
 # Licence      : GPL-3 (http://opensource.org/licenses/gpl-3.0)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -102,9 +102,11 @@ fi
 : "${_forceINSTALL:=0}"
 : "${_noINTERNET:=0}"
 : "${_unattendedINSTALL:=0}"
+ipaddress='' # else ShellCheck freaksout
+
 
 # Oh ! Dirty !  ;
-source /opt/fog/.fogsettings
+[[ -r "/opt/fog/.fogsettings" ]] && source /opt/fog/.fogsettings
 
 basedir="$(realpath "$PWD")"
 if [ "$basedir" == '/' ]; then
@@ -352,13 +354,25 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 	#
 	#  HERE, put the Apache installation block
 
+	# Workaround - shim in certain case, with certain specific computers will load a bad second loader : https://github.com/rhboot/shim/issues/649
+	if [[ -r "/tftpboot/grubx64.efi" ]]; then
+		for val in {128..254}
+			do
+				dec2hex="$(printf %x "$val")"
+				ln "/tftpboot/grubx64.efi" "/tftpboot/$(printf "\x$dec2hex")Onboard"
+			done
+	else
+		echo '/tftpboot/grubx64.efi does not exist, workaround for shim ignored'
+	fi
+	
 	echo "=> Copy GRUB files..."
 	cp -rf "$basedir"/src/tftpboot/* /tftpboot/
+	[[ ! -r "/tftpboot/grub/custom.cfg" ]] && cp "/tftpboot/grub/custom.cfg.example" "/tftpboot/grub/custom.cfg"
 	chown -R fogproject:root /tftpboot
 	chmod -R 0755 /tftpboot
 
     echo "=> Create '@apk' to /images + settings permissions..."
-    [[ ! -d "${docroot}${webroot}/service/grub/tftp" ]] && mkdir "/images/@apk"
+    [[ ! -d "/images/@apk" ]] && mkdir "/images/@apk"
 	# NOTE : @apk MUST BELONG to root
 	chown -R root:root "/images/@apk"
 	chmod -R 0755 "/images/@apk"
@@ -388,7 +402,7 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 				# mkrandom ? ^^
 				TempConf=$(mktemp)
 				cat <<'EOF' >> "${TempConf}"
-# -=-=-=- Add made by foguefi patch
+# -=-=-=- Add made by FOGUefi patch
 RewriteRule /service/grub/grub.php$ - [L]        # Needed for GRUB (unable to fetch ressources HTTPS mode)
 RewriteRule /service/grub/tftp/.*$ - [L]        # Needed for GRUB
 # -=-=-=--=-=-=-=-=-=-
