@@ -62,7 +62,7 @@ terminal-border: "4"
   width = 100%
   align = "right"
   color = "#FFFFFF"
-  text = "FOGUefi (20240906) "
+  text = "FOGUefi (20240926) "
 }
 
 + label {
