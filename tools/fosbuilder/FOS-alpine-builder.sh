@@ -166,7 +166,21 @@ function _dl_package() {
   #echo " --- Now downloading package $1"
   do_log " Begin _dl_package ${package_name} % ${architecture} % ${download_location} % ${repo_url} % ${skip_deps}"
   
-  package_info=$(grep -A 20 "^Package: $package_name\$" "$(get_basedir_temp)/repository")
+  do_log "Check repositoryUPD for ${package_name}"
+  package_info=$(grep -A 20 "^Package: $package_name\$" "$(get_basedir_temp)/repositoryUPD" || true)
+  if [[ -z "$package_info" ]] ; then
+    do_log "Package ${package_name} NOT FOUND in repositoryUPD, trying repositorySEC..."
+    package_info=$(grep -A 20 "^Package: $package_name\$" "$(get_basedir_temp)/repositorySEC" || true)
+    if [[ -z "$package_info" ]] ; then
+      do_log "Package ${package_name} NOT FOUND in repositorySEC, trying repository..."
+      package_info=$(grep -A 20 "^Package: $package_name\$" "$(get_basedir_temp)/repository" || true)
+      if [ -z "$package_info" ]; then
+        #echo "Package $package_name not found in the repository."
+        _ERRMSG="FATAL : Package $package_name not found in the repository. (UPD->SEC->REL)"
+        return 1
+      fi      
+    fi
+  fi
 
   if [ -z "$package_info" ]; then
     #echo "Package $package_name not found in the repository."
@@ -177,15 +191,17 @@ function _dl_package() {
   #local package_version=$(echo "$package_info" | grep "^Version:" | awk '{print $2}')
   #local package_url="${repo_url}/pool/main/${package_name:0:1}/${package_name}/${package_name}_${package_version}_${architecture}.deb"
 
-  package_filename=$(echo "$package_info" | grep "^Filename:" | awk '{print $2}')
+  package_filename=$(echo "$package_info" | grep "^Filename:" | head -1 | awk '{print $2}')
   package_url="${repo_url}/${package_filename}"
 
   # Download the package
   # Part of the code : Jakub Jirutka <jakub@jirutka.cz> (MIT License)
-  _ERRMSG="FATAL : Error when downloading deb package ${download_location}"
+  _ERRMSG="FATAL : Error when downloading deb package URL ${package_url} to path ${download_location}"
 	if command -v curl >/dev/null; then
+    do_log "NOW downloading file ${package_url}"
 		curl --output-dir "${download_location}" --remote-name --connect-timeout 10 -fsSL "${package_url}" >> "$do_logfile" 2>&1
 	elif command -v wget >/dev/null; then
+    do_log "NOW downloading file ${package_url}"
 		wget -P "${download_location}" -T 10 --no-verbose "${package_url}" >> "$do_logfile" 2>&1
 	else
 		_ERRMSG='FATAL: Cannot download package package_url to download_location : neither curl nor wget is available!'
@@ -232,22 +248,39 @@ function init_dl_package {
 
   # Create the URL for the compressed Packages file
   packages_url="${UBUNTU_repo_url}/dists/${UBUNTU_distroname}/main/binary-${UBUNTU_architecture}/Packages.gz"
+  packagesSEC_url="${UBUNTU_repo_url}/dists/${UBUNTU_distroname}-security/main/binary-${UBUNTU_architecture}/Packages.gz"
+  packagesUPD_url="${UBUNTU_repo_url}/dists/${UBUNTU_distroname}-updates/main/binary-${UBUNTU_architecture}/Packages.gz"
 
-  do_log "Do init_dl_package with URL $packages_url"
+  do_log "Do init_dl_package"
 
   _ERRMSG="FATAL: Error when downloading packages list ${packages_url}"
   # Download and extract the compressed Packages file
   # Part of the code : Jakub Jirutka <jakub@jirutka.cz> (MIT License)
 	if command -v curl >/dev/null; then
+    do_log "Do curl URL $packages_url to $(get_basedir_temp)/repository.gz"
 		curl -o "$(get_basedir_temp)/repository.gz" --remote-name --connect-timeout 10 -fsSL "${packages_url}" >> "$do_logfile" 2>&1
+    do_log "Do curl URL $packagesSEC_url to $(get_basedir_temp)/repositorySEC.gz"
+		curl -o "$(get_basedir_temp)/repositorySEC.gz" --remote-name --connect-timeout 10 -fsSL "${packagesSEC_url}" >> "$do_logfile" 2>&1
+    do_log "Do curl URL $packagesUPD_url to $(get_basedir_temp)/repositoryUPD.gz"
+		curl -o "$(get_basedir_temp)/repositoryUPD.gz" --remote-name --connect-timeout 10 -fsSL "${packagesUPD_url}" >> "$do_logfile" 2>&1
 	elif command -v wget >/dev/null; then
+    do_log "Do wget URL $packages_url to $(get_basedir_temp)/repository.gz"
 		wget -O "$(get_basedir_temp)/repository.gz" -T 10 --no-verbose "${packages_url}" >> "$do_logfile" 2>&1
+    do_log "Do wget URL $packagesSEC_url to $(get_basedir_temp)/repositorySEC.gz"
+		wget -O "$(get_basedir_temp)/repositorySEC.gz" -T 10 --no-verbose "${packagesSEC_url}" >> "$do_logfile" 2>&1
+    do_log "Do wget URL $packagesUPD_url to $(get_basedir_temp)/repositoryUPD.gz"
+		wget -O "$(get_basedir_temp)/repositoryUPD.gz" -T 10 --no-verbose "${packagesUPD_url}" >> "$do_logfile" 2>&1        
 	else
 		_ERRMSG='FATAL: Cannot download repository packages_url: neither curl nor wget is available!'
     false; exit 1
 	fi
   _ERRMSG='FATAL: Uncompress repository failed'
   gunzip "$(get_basedir_temp)/repository.gz"
+  _ERRMSG='FATAL: Uncompress repository (security) failed'
+  gunzip "$(get_basedir_temp)/repositorySEC.gz"
+  _ERRMSG='FATAL: Uncompress repository (updates) failed'
+  gunzip "$(get_basedir_temp)/repositoryUPD.gz"  
+
   do_log "Done init_dl_package"
 }
 
