@@ -1,5 +1,5 @@
 #!/bin/bash
-C_FOGUEFI_VERSION='20240926'
+C_FOGUEFI_VERSION='20241204'
 C_FOGUEFI_APIVERSION='20240806'
 #============================================================================
 #         F O G U E F I - Free Opensource Ghost, batteries included
@@ -166,12 +166,12 @@ fi
 
 _mode=''
 if [[ "$_noINTERNET" -eq 1 ]]; then
-	_mode="Offline installation"
+	_mode="offline installation"
 else
 	if [[ "$_rebuildFOGUEFI" -eq 1 ]]; then
-		_mode="Rebuild FOGUefi"
+		_mode="rebuild FOGUefi"
 	else
-		_mode="Download from Github"
+		_mode="download from Github"
 	fi
 fi
 [[ "$_skipAPACHECNFG" -eq 1 ]] && _mode="$_mode (Skipping Apache configuration)"
