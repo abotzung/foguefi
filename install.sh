@@ -395,13 +395,19 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 		# If not supported or ignored, GRUB cannot work.
 		#
 		#FOGApacheFile=$(grep -rnw '/management/other/ca.cert.der$ - ' /etc/apache2 | head -n1 | cut -f1 -d:)
-		FOGApacheFile=$(find /etc/apache2/sites-enabled/ -type l -exec readlink -f {} \; | xargs grep -l '/management/other/ca.cert.der$ - ' | head -n1 | cut -f1 -d:)
-		[ -z "$FOGApacheFile" ] && FOGApacheFile="."
-		grep 'Add made by foguefi patch' "$FOGApacheFile" > /dev/null 2>&1
-		FOGApachefileAlreadyPatched_FLAG=$?
+		# Apache2 n'ouvres QUE les fichiers .conf (par défaut)
+		FOGApacheFile=$(grep -l '/management/other/ca.cert.der$ - ' /etc/apache2/sites-enabled/*.conf | head -n1)
+
+		if [ -n "$FOGApacheFile" ]; then
+			grep 'Add made by foguefi patch' "$FOGApacheFile" > /dev/null 2>&1
+			FOGApachefileAlreadyPatched_FLAG=$?
+		else
+			FOGApachefileAlreadyPatched_FLAG=42
+		fi
 
 		if [ -f "$FOGApacheFile" ]; then
 			if [ "$FOGApachefileAlreadyPatched_FLAG" -ne 0 ]; then
+				# Apache2 n'ouvres QUE les fichiers .conf 
 				cp -f "$FOGApacheFile" "${FOGApacheFile}.bak_foguefi"
 				# mkrandom ? ^^
 				TempConf=$(mktemp)
