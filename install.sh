@@ -394,10 +394,14 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 		#   This is a workaround to provide a valid configuration for GRUB, even if the webserver uses https.
 		# If not supported or ignored, GRUB cannot work.
 		#
-		FOGApacheFile=$(grep -rnw '/management/other/ca.cert.der$ - ' /etc/apache2 | head -n1 | cut -f1 -d:)
-		FOGApachefileAlreadyPatched=$(grep -rnw 'Add made by foguefi patch' /etc/apache2 | head -n1 | cut -f1 -d:)
+		#FOGApacheFile=$(grep -rnw '/management/other/ca.cert.der$ - ' /etc/apache2 | head -n1 | cut -f1 -d:)
+		FOGApacheFile=$(find /etc/apache2/sites-enabled/ -type l -exec readlink -f {} \; | xargs grep -l '/management/other/ca.cert.der$ - ' | head -n1 | cut -f1 -d:)
+		[ -z "$FOGApacheFile" ] && FOGApacheFile="."
+		grep 'Add made by foguefi patch' "$FOGApacheFile" > /dev/null 2>&1
+		FOGApachefileAlreadyPatched_FLAG=$?
+
 		if [ -f "$FOGApacheFile" ]; then
-			if [ ! -f "$FOGApachefileAlreadyPatched" ]; then
+			if [ "$FOGApachefileAlreadyPatched_FLAG" -eq 0 ]; then
 				cp -f "$FOGApacheFile" "${FOGApacheFile}.bak_foguefi"
 				# mkrandom ? ^^
 				TempConf=$(mktemp)
