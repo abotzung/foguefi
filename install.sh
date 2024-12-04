@@ -401,7 +401,7 @@ if [[ "$question" == "y" || "$question" == "Y" ]]; then
 		FOGApachefileAlreadyPatched_FLAG=$?
 
 		if [ -f "$FOGApacheFile" ]; then
-			if [ "$FOGApachefileAlreadyPatched_FLAG" -eq 0 ]; then
+			if [ "$FOGApachefileAlreadyPatched_FLAG" -ne 0 ]; then
 				cp -f "$FOGApacheFile" "${FOGApacheFile}.bak_foguefi"
 				# mkrandom ? ^^
 				TempConf=$(mktemp)
