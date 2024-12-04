@@ -1,7 +1,7 @@
 diff -ruN ./bin/fog ../FOS_PREP/bin/fog
---- ./bin/fog	2024-07-04 02:17:33.994298149 +0200
-+++ ../FOS_PREP/bin/fog	2024-07-04 02:20:51.403344799 +0200
-@@ -11,7 +11,7 @@
+--- ./bin/fog	2024-12-04 09:26:19.018388658 +0100
++++ ../FOS_PREP/bin/fog	2024-12-04 09:29:57.087265234 +0100
+@@ -13,7 +13,7 @@
  dots "Running post init scripts"
  [[ ! -d /imagesinit ]] && mkdir /imagesinit >/dev/null 2>&1
  umount /imagesinit >/dev/null 2>&1
@@ -11,8 +11,8 @@ diff -ruN ./bin/fog ../FOS_PREP/bin/fog
      if [[ -f /imagesinit/.mntcheck ]]; then
          if [[ -f /imagesinit/postinitscripts/fog.postinit ]]; then
 diff -ruN ./bin/fog.av ../FOS_PREP/bin/fog.av
---- ./bin/fog.av	2024-07-04 02:17:33.994298149 +0200
-+++ ../FOS_PREP/bin/fog.av	2024-07-04 02:21:10.555833280 +0200
+--- ./bin/fog.av	2024-12-04 09:26:19.018388658 +0100
++++ ../FOS_PREP/bin/fog.av	2024-12-04 09:24:55.764288523 +0100
 @@ -12,7 +12,7 @@
  sysuuid=${sysuuid,,}
  dots "Mounting Clamav"
@@ -23,8 +23,8 @@ diff -ruN ./bin/fog.av ../FOS_PREP/bin/fog.av
      echo "Failed"
      debugPause
 diff -ruN ./bin/fog.mount ../FOS_PREP/bin/fog.mount
---- ./bin/fog.mount	2024-07-04 02:17:33.994298149 +0200
-+++ ../FOS_PREP/bin/fog.mount	2024-07-04 02:21:32.236386027 +0200
+--- ./bin/fog.mount	2024-12-04 09:26:19.018388658 +0100
++++ ../FOS_PREP/bin/fog.mount	2024-12-04 09:24:55.764288523 +0100
 @@ -14,10 +14,10 @@
  umount /images >/dev/null 2>&1
  case $type in
@@ -39,8 +39,8 @@ diff -ruN ./bin/fog.mount ../FOS_PREP/bin/fog.mount
  esac
  case $? in
 diff -ruN ./bin/fog.photorec ../FOS_PREP/bin/fog.photorec
---- ./bin/fog.photorec	2024-07-04 02:17:33.994298149 +0200
-+++ ../FOS_PREP/bin/fog.photorec	2024-07-04 02:22:14.021450759 +0200
+--- ./bin/fog.photorec	2024-12-04 09:26:19.018388658 +0100
++++ ../FOS_PREP/bin/fog.photorec	2024-12-04 09:24:55.764288523 +0100
 @@ -18,7 +18,7 @@
  echo "Done"
  debugPause
@@ -51,8 +51,8 @@ diff -ruN ./bin/fog.photorec ../FOS_PREP/bin/fog.photorec
      0)
          echo "Done"
 diff -ruN ./bin/fog.statusreporter ../FOS_PREP/bin/fog.statusreporter
---- ./bin/fog.statusreporter	2024-07-04 02:17:33.994298149 +0200
-+++ ../FOS_PREP/bin/fog.statusreporter	2024-07-04 02:22:32.925932223 +0200
+--- ./bin/fog.statusreporter	2024-12-04 09:26:19.018388658 +0100
++++ ../FOS_PREP/bin/fog.statusreporter	2024-12-04 09:24:55.768288624 +0100
 @@ -9,6 +9,7 @@
  while :; do
      tmpfile="/tmp/status.fog"
@@ -62,8 +62,8 @@ diff -ruN ./bin/fog.statusreporter ../FOS_PREP/bin/fog.statusreporter
      [[ -z $mac ]] && continue
      status=$(echo $status | base64)
 diff -ruN ./bin/fog.wipe ../FOS_PREP/bin/fog.wipe
---- ./bin/fog.wipe	2024-07-04 02:17:33.994298149 +0200
-+++ ../FOS_PREP/bin/fog.wipe	2024-07-06 22:32:54.633725388 +0200
+--- ./bin/fog.wipe	2024-12-04 09:26:19.018388658 +0100
++++ ../FOS_PREP/bin/fog.wipe	2024-12-04 09:24:55.768288624 +0100
 @@ -7,7 +7,7 @@
  hd=""
  [[ -z $seconds ]] && seconds=60
@@ -74,8 +74,8 @@ diff -ruN ./bin/fog.wipe ../FOS_PREP/bin/fog.wipe
  echo -e " You have $seconds seconds to turn off this computer to cancel!\n"
  usleep $((seconds * 1000000))
 diff -ruN ./usr/share/fog/lib/funcs.sh ../FOS_PREP/usr/share/fog/lib/funcs.sh
---- ./usr/share/fog/lib/funcs.sh	2024-07-04 02:17:33.994298149 +0200
-+++ ../FOS_PREP/usr/share/fog/lib/funcs.sh	2024-07-04 04:13:10.457456273 +0200
+--- ./usr/share/fog/lib/funcs.sh	2024-12-04 09:26:19.022388758 +0100
++++ ../FOS_PREP/usr/share/fog/lib/funcs.sh	2024-12-04 09:36:11.945879695 +0100
 @@ -1,15 +1,34 @@
  #!/bin/bash
 +#== P A T C H : Recover kernel parameters from hinfo && hinfo_foguefi
@@ -171,7 +171,25 @@ diff -ruN ./usr/share/fog/lib/funcs.sh ../FOS_PREP/usr/share/fog/lib/funcs.sh
      echo $mac_addresses
  }
  # Gets all macs and types.
-@@ -1707,15 +1730,38 @@
+@@ -517,7 +540,7 @@
+     echo "Done"
+     debugPause
+     dots "Setting permission on $imagePath"
+-    chmod -R 775 $imagePath >/dev/null 2>&1
++    chmod -R 777 $imagePath >/dev/null 2>&1
+     case $? in
+         0)
+             echo "Done"
+@@ -1604,7 +1627,7 @@
+ completeTasking() {
+     case $type in
+         up)
+-            chmod -R 775 "$imagePath" >/dev/null 2>&1
++            chmod -R 777 "$imagePath" >/dev/null 2>&1
+             killStatusReporter
+             . /bin/fog.imgcomplete
+             ;;
+@@ -1725,15 +1748,38 @@
      local str="$1"
      local parts=""
      local part=""
@@ -215,7 +233,7 @@ diff -ruN ./usr/share/fog/lib/funcs.sh ../FOS_PREP/usr/share/fog/lib/funcs.sh
      #
      # expand the file systems in the restored partitions
      #
-@@ -1729,21 +1775,16 @@
+@@ -1747,21 +1793,16 @@
                      getPartitions "$hd"
                      for part in $parts; do
                          expandPartition "$part"
@@ -240,7 +258,7 @@ diff -ruN ./usr/share/fog/lib/funcs.sh ../FOS_PREP/usr/share/fog/lib/funcs.sh
      exit 1
  }
  # Prints a visible banner describing an issue but not breaking
-@@ -1751,17 +1792,41 @@
+@@ -1769,17 +1810,41 @@
  # $1 The string to inform the user what the problem is
  handleWarning() {
      local str="$1"
