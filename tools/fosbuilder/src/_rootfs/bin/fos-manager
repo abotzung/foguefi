@@ -312,6 +312,7 @@ do
                 echo " FOS halted, powering down..."
                 sleep 3
                 [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+                sync
                 [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
             fi
         fi
@@ -365,6 +366,10 @@ do
                             ;;
                         *)
                             [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+                            sync
+                            sync
+                            sync
+                            sleep 1
                             [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
                             ;;
                     esac
@@ -412,6 +417,7 @@ do
             # basconsole return exitcode 124 if a timeout has been generated.
             # By default, a timeout proves the operator is away. In this case, reboot the computer or shut it down accordingly
             [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+            sync
             [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f            
         fi
     fi
@@ -449,6 +455,7 @@ do
                     fi
                 done
                 [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+                sync
                 [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
             else
                 debugPause
@@ -456,6 +463,7 @@ do
                 # In case of, restart in 1 hour
                 sleep 3600
                 [[ -r "/tmp/trigger.exit_fos" ]] && . /tmp/trigger.exit_fos
+                sync
                 [[ $shutdown -eq 1 ]] && poweroff -f || reboot -f
             fi
         fi
